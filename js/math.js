@@ -37,6 +37,16 @@ function layer(r, correct, wrongPool, key) {
   return { correct, opts: shuffleR(r, [correct, ...wrong]) };
 }
 
+export const EQ_HINT = {
+  'm-expr': 'Copy the equation exactly as written, then solve for x.',
+  'm-linword': 'The fee is paid once; the rate goes with x (once per unit).',
+  'm-system': 'Type both equations, one per line, then click where they cross.',
+  'm-percent': 'Percent off → times (1 − rate). Percent up → times (1 + rate). "Is p% of" → rate × x = part.',
+  'm-func': 'Output f(k): define f(x), then type f(k). Input t: set the expression equal to the value.',
+  'm-quad': 'Type it as y = …, then read where it crosses the x-axis.',
+  'm-exp': 'Start × factor^(x ÷ time per step).',
+  'm-ratio': 'Same order on both sides: first thing / second thing = first thing / x.',
+};
 export const MATH_SKILLS = [
   { id: 'm-expr', name: 'Solve for an expression (kx, not x)', short: 'Expression, not x' },
   { id: 'm-linword', name: 'Linear word problems (fee + rate)', short: 'Fee + rate' },

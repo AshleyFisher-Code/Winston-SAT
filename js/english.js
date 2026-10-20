@@ -72,7 +72,8 @@ export function englishCard(sp) {
   let choices, sentence;
   if (it.kind === 'bd') {
     choices = sp.v === 'lure' ? lureChoices(it, seed) : bdChoices(it, seed);
-    sentence = { before: it.L, after: it.R };
+    // The first word after the blank stays visible so each side can be judged as a whole (the blank is only the punctuation).
+    sentence = { before: it.L, after: sp.v === 'lure' ? it.R : ' ' + it.w + (it.t === 'adv' ? ',' : '') + it.R };
   } else {
     choices = svChoices(it, seed);
     sentence = { before: it.pre + (it.pre.endsWith('—') ? '' : ' '), after: ' ' + it.post };
@@ -82,7 +83,7 @@ export function englishCard(sp) {
   if (sp.m === 'rule') { // trigger: which goal applies? (decided by looking at the choices)
     const ans = sp.v === 'lure' ? 'Neither' : it.kind === 'bd' ? 'Split the boundary' : 'Find the real subject';
     card.chip = 'Which goal?'; card.instr = 'Look at the four choices. Which goal applies? Don\'t answer the question.';
-    card.steps.push({ tag: 'trigger', fields: [{ label: 'Goal', choices: GOALS, answer: ans }],
+    card.steps.push({ tag: 'trigger', fields: [{ label: 'Goal', choices: GOALS, answer: ans, long: true }],
       why: () => ans === 'Neither' ? 'The choices differ in words, not punctuation or verb forms. Neither goal applies.' : ans === 'Split the boundary' ? 'The choices differ only in punctuation → split the boundary.' : 'The choices are different forms of one verb → find the real subject.' });
     card.summary = `Which goal: ${sp.v === 'lure' ? 'transition words (neither)' : sk.name}`;
     card.lure = sp.v === 'lure';
