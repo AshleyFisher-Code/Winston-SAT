@@ -107,7 +107,7 @@ function streakCard() {
 }
 function renderHome() {
   const v = streakView(S, today(), settings), saved = loadRun();
-  const name = settings.name || '';
+  const name = settings.name || 'Winston';
   const T = SESSION_TYPES;
   show(
     h('div', { class: 'top' }, h('h1', { text: `Hi${name ? ', ' + name : ''}` }), role === 'parent' ? h('button', { class: 'back', onclick: () => go('parent') }, 'Parent view') : null),
