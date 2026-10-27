@@ -6,7 +6,7 @@ export function summarize(run, today) {
   const first = run.results.filter(r => !r.follow && !r.teach);
   const modes = {}, goals = {}, missedBy = {};
   first.forEach(r => { const m = modes[r.mode] || (modes[r.mode] = [0, 0]); m[1]++; if (r.ok) m[0]++; });
-  run.results.filter(r => !r.teach).forEach(r => r.steps.forEach(([tag, ok]) => { const g = goals[tag] || (goals[tag] = [0, 0]); g[1]++; if (ok) g[0]++; }));
+  run.results.filter(r => !r.teach).forEach(r => r.steps.forEach(([tag, ok]) => { if (ok == null) return; const g = goals[tag] || (goals[tag] = [0, 0]); g[1]++; if (ok) g[0]++; }));
   run.results.filter(r => !r.ok && !r.teach && !r.lure).forEach(r => { missedBy[r.skill] = (missedBy[r.skill] || 0) + 1; });
   const fol = run.results.filter(r => r.follow && !r.teach);
   return {
@@ -15,6 +15,8 @@ export function summarize(run, today) {
     modes, goals, missedBy,
     lures: (() => { const l = first.filter(r => r.lure); return [l.filter(r => r.ok).length, l.length]; })(),
     follow: [fol.filter(r => r.ok).length, fol.length],
+    procMiss: first.filter(r => r.procMiss).map(r => r.skill),
+    skipped: (() => { const k = first.filter(r => r.skipped); return [k.filter(r => r.ok).length, k.length]; })(),
     teach: run.results.filter(r => r.teach).map(r => r.skill),
     misses: run.results.filter(r => !r.ok && !r.teach).slice(0, 30).map(r => ({ s: r.summary, a: r.correct, y: r.wrongFirst })),
   };
@@ -32,6 +34,8 @@ export function reportText(s, name) {
   if (s.lures && s.lures[1]) L.push(`  "Neither" lures spotted: ${s.lures[0]}/${s.lures[1]}`);
   const mb = Object.entries(s.missedBy || {}).sort((a, b) => b[1] - a[1]);
   L.push('Missed skills: ' + (mb.length ? mb.map(([k, n]) => `${SKILL[k] ? SKILL[k].name : k}${n > 1 ? ` ×${n}` : ''}`).join('; ') : 'none'));
+  if (s.skipped && s.skipped[1]) L.push(`Skipped the steps and answered directly: ${s.skipped[1]} · right ${s.skipped[0]}/${s.skipped[1]}`);
+  if (s.procMiss && s.procMiss.length) L.push(`Right answer but missed a step (carried to a later session): ${s.procMiss.map(k => SKILL[k] ? SKILL[k].name : k).join('; ')}`);
   if (s.follow && s.follow[1]) L.push(`Came back later in the session: ${s.follow[1]} · held ${s.follow[0]}/${s.follow[1]}`);
   if (s.teach && s.teach.length) L.push('Step-by-step teaching shown: ' + s.teach.map(k => SKILL[k].name).join('; '));
   if (s.misses && s.misses.length) { L.push('Misses:'); s.misses.forEach(m => L.push(`  - ${m.s}${m.y ? ` · first tapped: ${m.y}` : ''} · right: ${m.a}`)); }

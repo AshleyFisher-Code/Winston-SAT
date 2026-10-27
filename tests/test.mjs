@@ -148,6 +148,11 @@ for (let k = 0; k < 150; k++) for (const type of Object.keys(SESSION_TYPES)) {
   recordCard(st, c, true, [true, true, true], 100); assert(st.skills['m-expr'].owed === 2, 'same-day right does not clear owed');
   recordCard(st, c, true, [true, true, true], 101); recordCard(st, c, true, [true, true, true], 102); assert(st.skills['m-expr'].owed === 0, 'owed clears after 2 later days');
   assert(st.goals.desmos.length === 4, 'goal stats');
+  // right answer, missed step: carries to a later session; skipped steps don't count in goal stats
+  const st2 = blankState();
+  recordCard(st2, c, true, [true, false, true], 200, true); assert(st2.skills['m-expr'].owed === 1 && st2.skills['m-expr'].full.slice(-1)[0] === 1, 'procMiss → owed 1, counted right');
+  recordCard(st2, c, true, [null, null, true], 201); assert(st2.goals.ask.length === 1 && st2.goals.answer.length === 2, 'skipped steps not counted');
+  assert(st2.skills['m-expr'].owed === 0, 'owed clears next day');
   const sess = buildSession('math', st, {}, 103); // not owed anymore; fine
   completeDay(st, 100, {}); completeDay(st, 101, {}); assert(st.streak.count === 2 && streakView(st, 101, {}).done, 'streak');
   const run = { sess: { type: 'math', title: 'Math' }, results: [{ skill: 'm-expr', mode: 'full', ok: false, follow: false, summary: 'x', correct: '12', wrongFirst: '4', steps: [['ask', true], ['desmos', false], ['answer', true]] }, { teach: true, skill: 'm-expr', steps: [] }] };

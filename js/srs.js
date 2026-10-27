@@ -21,13 +21,16 @@ const push20 = (arr, x) => { arr.push(x); if (arr.length > 20) arr.shift(); };
 export function skillRec(S, id) { return S.skills[id] || (S.skills[id] = { rule: [], decode: [], full: [], n: 0, last: null, owed: 0, missDay: null }); }
 
 // One finished card. ok = every step right on the first try. Lures only count toward the goal stats.
-export function recordCard(S, card, ok, stepOk, today) {
-  stepOk.forEach((o, i) => { const tag = card.steps[i].tag; push20(S.goals[tag] || (S.goals[tag] = []), o ? 1 : 0); });
+// stepOk[i] is true / false, or null when he skipped that step. procMiss = right answer but a step before it was wrong:
+// no repeat in this session, but the skill is put first in a later session.
+export function recordCard(S, card, ok, stepOk, today, procMiss = false) {
+  stepOk.forEach((o, i) => { if (o == null) return; const tag = card.steps[i].tag; push20(S.goals[tag] || (S.goals[tag] = []), o ? 1 : 0); });
   if (card.itemId) S.items[card.itemId] = today;
   if (card.lure || card.teach) return;
   const s = skillRec(S, card.skill);
   push20(s[card.mode], ok ? 1 : 0); s.n++;
   if (!ok) { s.owed = 2; s.missDay = today; }
+  else if (procMiss) { s.owed = Math.max(s.owed || 0, 1); s.missDay = today; }
   else if (s.owed && s.missDay !== today) s.owed--;
   s.last = today;
 }

@@ -158,10 +158,11 @@ function lockedChoices(card) {
   const ansIdx = card.steps.findIndex(s => s.tag === 'answer');
   if (ansIdx >= 0 && (cs.step >= ansIdx || cs.phase === 'done')) return null; // shown as buttons in the answer step
   return h('div', { class: 'locked' }, h('div', { class: 'eyebrow', text: 'Choices' }), h('ol', {}, st.choices.map(c => h('li', { text: c }))),
-    ansIdx >= 0 ? h('div', { class: 'note', text: '🔒 Unlocks after step 1.' }) : null);
+    ansIdx >= 0 ? h('div', { class: 'note', text: cs.mustSteps ? '🔒 Unlocks after step 1.' : '🔒 Unlocks after step 1, or tap "Skip to answer."' }) : null);
 }
 function doneStepLine(card, i) {
   const st = card.steps[i];
+  if (cs.firsts[i] === null) return h('div', { class: 'done-step skip' }, h('span', { class: 'tick', text: '→' }), h('div', {}, h('b', { text: (st.title || 'Step') + ': ' }), 'skipped'));
   const vals = st.fields.map(f => f.answer);
   return h('div', { class: 'done-step' + (cs.firsts[i] ? '' : ' redo') }, h('span', { class: 'tick', text: cs.firsts[i] ? '✓' : '↺' }),
     h('div', {}, h('b', { text: (st.title || 'Step') + ': ' }), st.fields.map((f, j) => `${f.label}: ${vals[j]}`).join(' · ')));
@@ -188,6 +189,7 @@ function draw() {
       st.askReminder ? h('div', { class: 'askrem' }, 'Your ask: ', h('b', { text: st.askReminder }), '. Look at it before you answer.') : null,
       h('div', { class: 'fields' }, st.fields.map((f, i) => { const el = fieldView(st, f, i); inputs.push(el); return h('div', { class: 'f' }, f.label, el); })));
     parts.push(stepEl);
+    if (cs.banner && cs.step === 0 && !cs.fb) parts.push(cs.banner);
     if (cs.fb) parts.push(cs.fb);
     btn.textContent = cs.phase === 'reveal' ? 'Continue' : 'Check';
     btn.onclick = () => (cs.phase === 'reveal' ? advance() : check(st));
@@ -196,7 +198,11 @@ function draw() {
     if (cs.fb) parts.push(cs.fb);
     btn.textContent = 'Next'; btn.onclick = nextCard;
   }
-  show(top, h('section', { class: 'card' }, parts, h('div', { class: 'actions' }, btn)));
+  // Full questions: he may skip the steps and answer directly. Right → move on. Wrong → the steps unlock and he works them.
+  const ansIdx = card.steps.findIndex(s => s.tag === 'answer');
+  const canSkip = card.mode === 'full' && ansIdx > 0 && cs.step < ansIdx && cs.phase === 'answer' && !cs.mustSteps && cs.firsts[cs.step] == null;
+  const skipBtn = canSkip ? h('button', { class: 'ghost', onclick: () => skipToAnswer(ansIdx) }, 'Skip to answer') : null;
+  show(top, h('section', { class: 'card' }, parts, h('div', { class: 'actions' }, btn, skipBtn)));
   if (cs.phase === 'done') setTimeout(() => btn.focus(), 0);
   else { const t = app.querySelector('input[type=text]:not([readonly])'); if (t) setTimeout(() => t.focus(), 30); }
 }
@@ -230,6 +236,12 @@ function check(st) {
     if (!first) cs.fb = null;
     return advance();
   }
+  if (cs.skipped && st.tag === 'answer' && !cs.mustSteps) {
+    cs.mustSteps = true; cs.wrongAfterSkip = true; cs.step = 0; cs.sel = []; cs.mark = null; cs.tries = 0;
+    for (let i = 0; i < cs.card.steps.length - 1; i++) cs.firsts[i] = undefined;
+    cs.fb = null; cs.banner = h('div', { class: 'fb bad' }, h('h3', { text: 'Not this one.' }), h('p', { text: 'Work it step by step, then answer again.' }));
+    return draw();
+  }
   cs.tries++;
   cs.mark = ok.map(o => (o ? 'ok' : 'bad'));
   if (cs.tries >= 3) { // stop, show the answer, move on (it is already queued to come back)
@@ -244,6 +256,10 @@ function check(st) {
   st.fields.forEach((f, i) => { if (!ok[i]) { if (f.typed) cs.sel[i] = ''; } });
   draw();
 }
+function skipToAnswer(ansIdx) {
+  for (let i = cs.step; i < ansIdx; i++) cs.firsts[i] = null;
+  cs.skipped = true; cs.step = ansIdx; cs.sel = []; cs.mark = null; cs.tries = 0; cs.fb = null; draw();
+}
 function advance() {
   const card = cs.card;
   cs.step++; cs.sel = []; cs.mark = null; cs.tries = 0;
@@ -253,10 +269,15 @@ function advance() {
 }
 function finishCard() {
   const card = cs.card, sp = cs.spec, t = today();
-  const ok = cs.firsts.every(Boolean);
-  recordCard(S, card, ok, cs.firsts, t);
-  run.results.push({ skill: card.skill, mode: card.mode, ok, follow: !!sp.follow, lure: !!card.lure, summary: card.summary,
-    correct: (() => { const i = cs.firsts.findIndex(x => !x); const st = card.steps[i >= 0 ? i : card.steps.length - 1]; return (i >= 0 && card.steps.length > 1 ? (st.title || st.tag) + ' → ' : '') + st.fields.map(f => f.answer).join(' / '); })(), wrongFirst: cs.wrongFirst, steps: card.steps.map((s, i) => [s.tag, !!cs.firsts[i]]) });
+  const ansIdx = card.steps.findIndex(s => s.tag === 'answer');
+  const full = card.mode === 'full' && ansIdx > 0;
+  // Full questions are judged by the answer. A missed step with a right answer doesn't repeat today; it carries to a later session.
+  const ok = full ? cs.firsts[ansIdx] === true : cs.firsts.every(Boolean);
+  const procMiss = full && ok && cs.firsts.slice(0, ansIdx).some(x => x === false);
+  const missedStep = procMiss ? card.steps[cs.firsts.findIndex(x => x === false)] : null;
+  recordCard(S, card, ok, cs.firsts.map(x => (x === undefined ? null : x)), t, procMiss);
+  run.results.push({ skill: card.skill, mode: card.mode, ok, procMiss, skipped: !!cs.skipped, follow: !!sp.follow, lure: !!card.lure, summary: card.summary,
+    correct: (() => { const i = cs.firsts.findIndex(x => x === false); const st = card.steps[i >= 0 ? i : card.steps.length - 1]; return (i >= 0 && card.steps.length > 1 ? (st.title || st.tag) + ' → ' : '') + st.fields.map(f => f.answer).join(' / '); })(), wrongFirst: cs.wrongFirst, steps: card.steps.map((s, i) => [s.tag, cs.firsts[i] == null ? null : !!cs.firsts[i]]) });
   if (!ok) {
     const skill = skillOfSpec(sp);
     const nF = run.follows[skill] || 0;
@@ -267,7 +288,8 @@ function finishCard() {
     }
   }
   save(); saveRun();
-  cs.fb = ok ? h('div', { class: 'fb ok' }, h('h3', { text: 'Correct' })) : (cs.fb && cs.fb.classList.contains('shown') ? cs.fb : h('div', { class: 'fb bad' }, h('h3', { text: 'Fixed it ✓' }), h('p', { class: 'small muted', text: 'This skill comes back later in a new question.' })));
+  cs.fb = procMiss ? h('div', { class: 'fb ok' }, h('h3', { text: 'Right answer ✓' }), h('p', { class: 'small muted', text: `${missedStep.title} will come up again in another session.` }))
+    : ok ? h('div', { class: 'fb ok' }, h('h3', { text: cs.skipped ? 'Correct ✓ (skipped the steps)' : 'Correct' })) : (cs.fb && cs.fb.classList.contains('shown') ? cs.fb : h('div', { class: 'fb bad' }, h('h3', { text: 'Fixed it ✓' }), h('p', { class: 'small muted', text: 'This skill comes back later in a new question.' })));
   draw();
 }
 function drawTeach(top) {
