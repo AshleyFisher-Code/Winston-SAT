@@ -38,7 +38,7 @@ export const TRAP_NEAR = {
   recycled: ['unsupported', 'opposite', 'offscope', 'common'],
   unsupported: ['extreme', 'half', 'recycled', 'offscope', 'opposite'],
   wrongrel: ['opposite'],
-  goalmiss: ['truenot', 'half', 'offscope'],
+  goalmiss: ['truenot', 'half', 'offscope', 'dataout'],
   common: ['tone', 'recycled'],
   tone: ['common', 'extreme'],
   datamis: ['opposite', 'dataout'],
