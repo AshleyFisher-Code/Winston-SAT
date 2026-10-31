@@ -1,7 +1,7 @@
 // Keeps the app opening with no signal. Own files: network first, fall back to cache.
-const CACHE = 'sat-1.1.0';
-const SHELL = ['./', 'index.html', 'css/app.css?v=1.1.0', 'js/app.js?v=1.1.0', 'js/firebase.js', 'js/config.js', 'js/util.js', 'js/srs.js', 'js/cards.js', 'js/english.js', 'js/math.js', 'js/session.js', 'js/report.js',
-  'js/content/boundaries.js', 'js/content/subjectverb.js', 'js/content/rules.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
+const CACHE = 'sat-1.2.0';
+const SHELL = ['./', 'index.html', 'css/app.css?v=1.2.0', 'js/app.js?v=1.2.0', 'js/firebase.js', 'js/config.js', 'js/util.js', 'js/srs.js', 'js/cards.js', 'js/english.js', 'js/math.js', 'js/session.js', 'js/report.js',
+  'js/content/boundaries.js', 'js/content/subjectverb.js', 'js/content/rules.js', 'js/content/rw_rules.js', 'js/content/rw_craft.js', 'js/content/rw_info.js', 'js/content/rw_expr.js', 'js/content/rw_trapfix.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

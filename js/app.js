@@ -186,7 +186,7 @@ function doneStepLine(card, i) {
   if (cs.firsts[i] === null) return h('div', { class: 'done-step skip' }, h('span', { class: 'tick', text: '→' }), h('div', {}, h('b', { text: (st.title || 'Step') + ': ' }), 'skipped'));
   const vals = st.fields.map(f => f.answer);
   return h('div', { class: 'done-step' + (cs.firsts[i] ? '' : ' redo') }, h('span', { class: 'tick', text: cs.firsts[i] ? '✓' : '↺' }),
-    h('div', {}, h('b', { text: (st.title || 'Step') + ': ' }), st.fields.map((f, j) => `${f.label}: ${vals[j]}`).join(' · ')));
+    h('div', {}, h('b', { text: (st.title || 'Step') + ': ' }), st.fields.map((f, j) => (st.fields.length === 1 && f.label === st.title ? vals[j] : `${f.label}: ${vals[j]}`)).join(' · ')));
 }
 function draw() {
   const card = cs.card, sp = cs.spec;

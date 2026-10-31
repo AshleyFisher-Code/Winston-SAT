@@ -2,7 +2,7 @@
 import { BOUNDARY } from '../js/content/boundaries.js';
 import { SV } from '../js/content/subjectverb.js';
 import { RULES, TEACH, EN_SKILLS, BD_SIDES } from '../js/content/rules.js';
-import { EN_ITEMS, bdChoices, svChoices, lureChoices, englishCard, trapChoices } from '../js/english.js';
+import { EN_ITEMS, bdChoices, svChoices, lureChoices, englishCard, trapChoices, trapFor } from '../js/english.js';
 import { TRAP_LABEL, TRAP_NEAR, RW_SKILLS } from '../js/content/rw_rules.js';
 import { makeMath, MATH_SKILLS, parseNum } from '../js/math.js';
 import { cardFromSpec, checkStep, ALL_SKILLS } from '../js/cards.js';
@@ -32,7 +32,7 @@ for (const v of SV) {
   assert(['sg', 'pl'].includes(v.num), `${v.id} num`);
   for (const k of ['s', 'p', 'pp', 'ing']) assert(v.v[k], `${v.id} verb form ${k}`);
 }
-assert(new Set(Object.keys(EN_ITEMS)).size === BOUNDARY.length + SV.length, 'duplicate English ids');
+assert(Object.keys(EN_ITEMS).length === BOUNDARY.length + SV.length + Object.values(EN_ITEMS).filter(x => x.kind === 'rw').length && Object.values(EN_ITEMS).filter(x => x.kind === 'rw').length === 126, 'duplicate English ids');
 for (const s of EN_SKILLS) { assert(RULES[s.id], 'rule card for ' + s.id); assert(TEACH[s.id], 'teaching card for ' + s.id); }
 for (const s of MATH_SKILLS) assert(TEACH[s.id], 'teaching card for ' + s.id);
 
@@ -101,8 +101,9 @@ for (const it of RW) {
     const c = englishCard({ s: 'en', id: it.id, m: 'rule', v: 'trap', seed });
     const st = c.steps[0], right = st.fields[0].answer;
     const code = Object.keys(TRAP_LABEL).find(k => TRAP_LABEL[k] === right);
-    assert(c.stem.flag && it.o.indexOf(c.stem.flag.text) !== it.a && it.tr[it.o.indexOf(c.stem.flag.text)] === code, `${L} trap card points at the right option`);
-    st.fields[0].choices.forEach(lbl => { const k = Object.keys(TRAP_LABEL).find(x => TRAP_LABEL[x] === lbl); if (k !== code) assert(!(TRAP_NEAR[code] || []).includes(k) && !(TRAP_NEAR[k] || []).includes(code), `${L} near-trap offered: ${code} vs ${k}`); });
+    const wi = it.o.indexOf(c.stem.flag.text), tf = trapFor(it, wi);
+    assert(c.stem.flag && wi !== it.a && tf.code === code, `${L} trap card points at the right option`);
+    st.fields[0].choices.forEach(lbl => { const k = Object.keys(TRAP_LABEL).find(x => TRAP_LABEL[x] === lbl); if (k !== code) assert(!(TRAP_NEAR[code] || []).includes(k) && !(TRAP_NEAR[k] || []).includes(code) && !tf.also.includes(k), `${L} near-trap offered: ${code} vs ${k}`); });
   }
   const full = englishCard({ s: 'en', id: it.id, m: 'full', seed: 3 });
   const ans = full.steps[1];

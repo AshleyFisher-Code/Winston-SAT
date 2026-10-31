@@ -124,9 +124,12 @@ export function englishCard(sp) {
 /* ---------- Reading & Writing (other sections) ---------- */
 const LET = 'ABCD';
 // Three trap names that can't be confused with the right one, type-relevant first.
-export function trapChoices(skill, code, seed) {
+// TRAP_FIX: per-option corrections from review: { 'cs001:1': { code?: 'better', also: ['codes that also fit'] } }
+import { TRAP_FIX } from './content/rw_trapfix.js';
+export function trapFor(it, i) { const f = TRAP_FIX[`${it.id}:${i}`] || {}; return { code: f.code || it.tr[i], also: f.also || [] }; }
+export function trapChoices(skill, code, seed, also = []) {
   const r = rng(seed ^ hash(skill + code));
-  const near = new Set([code, ...(TRAP_NEAR[code] || [])]);
+  const near = new Set([code, ...(TRAP_NEAR[code] || []), ...also]);
   const ok = c => !near.has(c) && !(TRAP_NEAR[c] || []).includes(code);
   const pref = shuffleR(r, (TRAPS_FOR[skill] || []).filter(ok));
   const rest = shuffleR(r, Object.keys(TRAP_LABEL).filter(c => ok(c) && !pref.includes(c)));
@@ -135,18 +138,19 @@ export function trapChoices(skill, code, seed) {
 function readingCard(sp, it, sk, card, seed) {
   card.stem = { kind: 'passage', p: it.p, tbl: it.tbl || null, q: it.q, choices: it.o };
   card.area = sk.area;
-  const pickedWhy = (i, label) => (TRAP_LABEL[it.tr[i]] ? `${label} ${TRAP_LABEL[it.tr[i]]}: ` : label + ' ') + it.e[i];
+  const ex = i => it.e[i].replace(/^(Correct|False)\s*:\s*/, '').replace(/^./, c => c.toUpperCase());
+  const pickedWhy = (i, label) => { const c = trapFor(it, i).code; return (TRAP_LABEL[c] ? `${label} ${TRAP_LABEL[c]}. ` : label + ' ') + ex(i); };
   if (sp.m === 'rule') { // spot the trap: why is this one wrong?
     const r = rng(seed ^ hash(it.id + 'trap'));
     const wrongIdx = shuffleR(r, [0, 1, 2, 3].filter(i => i !== it.a))[0];
-    const code = it.tr[wrongIdx];
-    const opts = shuffleR(r, trapChoices(it.skill, code, seed).map(c => TRAP_LABEL[c]));
+    const { code, also } = trapFor(it, wrongIdx);
+    const opts = shuffleR(r, trapChoices(it.skill, code, seed, also).map(c => TRAP_LABEL[c]));
     card.chip = 'Spot the trap'; card.instr = null;
     card.stem.flag = { letter: LET[wrongIdx], text: it.o[wrongIdx] };
     card.stem.choices = null;
     card.steps.push({ tag: 'trap', title: 'Spot the trap', instr: `Choice ${LET[wrongIdx]} is wrong. What kind of trap is it?`,
       fields: [{ label: 'The trap', choices: opts, answer: TRAP_LABEL[code], long: true }],
-      why: () => `${TRAP_LABEL[code]}: ${it.e[wrongIdx]}` });
+      why: () => `${TRAP_LABEL[code]}. ${ex(wrongIdx)}` });
     card.summary = `Spot the trap: ${sk.name} (${it.id})`;
     return card;
   }
@@ -155,8 +159,8 @@ function readingCard(sp, it, sk, card, seed) {
   if (sp.m === 'decode') { card.chip = 'Decode'; card.summary = `Decode: ${sk.name} (${it.id})`; return card; }
   card.steps.push({ tag: 'answer', title: 'Now answer', instr: null,
     fields: [{ label: 'Answer', choices: it.o, answer: it.o[it.a], long: true }],
-    why: () => it.e[it.a],
-    whyFor: sel => { const i = it.o.indexOf(sel[0]); return [i >= 0 && i !== it.a ? pickedWhy(i, `You picked ${LET[i]}.`) : null, `Right: ${it.e[it.a]}`].filter(Boolean); } });
+    why: () => ex(it.a),
+    whyFor: sel => { const i = it.o.indexOf(sel[0]); return [i >= 0 && i !== it.a ? pickedWhy(i, `You picked ${LET[i]}:`) : null, `Why ${LET[it.a]} is right: ${ex(it.a)}`].filter(Boolean); } });
   card.chip = 'Full question'; card.summary = `${sk.name} (${it.id})`;
   card.correctText = it.o[it.a];
   return card;
