@@ -147,14 +147,35 @@ function stemView(card) {
   const st = card.stem;
   if (st.kind === 'math') return h('p', { class: 'mathstem', text: st.text });
   if (st.kind === 'rule') return h('p', { class: 'rulestem', text: st.text });
+  if (st.kind === 'passage') return passageView(st);
   const cur = card.steps[cs.step];
   const split = card.split && (cs.phase === 'done' || (cur && cur.tag !== 'trigger'));
   return h('div', {},
     h('p', { class: 'sentence' }, split ? h('span', { class: 'side l', text: st.before }) : st.before, h('span', { class: 'blank', 'aria-label': 'blank' }), split ? h('span', { class: 'side r', text: st.after }) : st.after),
     split ? h('div', { class: 'legend', style: 'margin-top:6px' }, h('span', {}, h('i', { class: 'sw l' }), 'Left side'), h('span', {}, h('i', { class: 'sw r' }), 'Right side')) : null);
 }
+// Passage text: \n line breaks, ______ blanks, [[underlined]] parts, optional table.
+function richText(s) {
+  const out = [];
+  String(s).split(/(\[\[[\s\S]*?\]\]|_{4,})/).forEach(part => {
+    if (!part) return;
+    if (part.startsWith('[[')) out.push(h('u', { class: 'ul', text: part.slice(2, -2) }));
+    else if (/^_{4,}$/.test(part)) out.push(h('span', { class: 'blank', 'aria-label': 'blank' }));
+    else out.push(part);
+  });
+  return out;
+}
+function passageView(st) {
+  const t = st.tbl;
+  return h('div', { class: 'passage' },
+    h('div', { class: 'ptext' }, richText(st.p)),
+    t ? h('div', { class: 'tw' }, h('table', { class: 'data' }, t.title ? h('caption', { text: t.title }) : null,
+      h('tr', {}, t.cols.map(c => h('th', { text: c }))), t.rows.map(row => h('tr', {}, row.map(c => h('td', { text: c })))))) : null,
+    h('p', { class: 'pq', text: st.q }),
+    st.flag ? h('div', { class: 'flagged' }, h('span', { class: 'pill bad', text: 'Wrong' }), h('div', {}, h('b', { text: st.flag.letter + ') ' }), st.flag.text)) : null);
+}
 function lockedChoices(card) {
-  const st = card.stem; if (st.kind !== 'sentence') return null;
+  const st = card.stem; if ((st.kind !== 'sentence' && st.kind !== 'passage') || !st.choices) return null;
   const ansIdx = card.steps.findIndex(s => s.tag === 'answer');
   if (ansIdx >= 0 && (cs.step >= ansIdx || cs.phase === 'done')) return null; // shown as buttons in the answer step
   return h('div', { class: 'locked' }, h('div', { class: 'eyebrow', text: 'Choices' }), h('ol', {}, st.choices.map(c => h('li', { text: c }))),
@@ -251,7 +272,7 @@ function check(st) {
     return draw();
   }
   cs.fb = h('div', { class: 'fb bad' }, h('h3', { text: 'Nope, actually:' }),
-    st.fields.map((f, i) => (ok[i] ? null : h('p', { class: 'ans' }, `${f.label}: ${f.answer}`))), h('p', { text: st.why() }),
+    st.fields.map((f, i) => (ok[i] ? null : h('p', { class: 'ans' }, `${f.label}: ${f.answer}`))), (st.whyFor ? st.whyFor(cs.sel) : [st.why()]).map(t => h('p', { text: t })),
     h('p', { class: 'small muted', text: st.fields.some((f, i) => !ok[i] && f.typed) ? 'Type the right answer to keep going.' : 'Tap the right answer to keep going.' }));
   st.fields.forEach((f, i) => { if (!ok[i]) { if (f.typed) cs.sel[i] = ''; } });
   draw();
@@ -334,8 +355,9 @@ function renderParent() {
   const last = sessions[0];
   const skillRow = id => { const s = S.skills[id] || {}; const cells = MODES.map(m => { const a = acc(s[m], 10), n = (s[m] || []).length; return h('td', { class: accCls(a), title: n ? `last ${Math.min(n, 10)}` : '' }, n ? pct(a) : '—'); });
     return h('tr', {}, h('td', {}, SKILL[id].name, s.owed ? h('span', { class: 'pill mid', style: 'margin-left:6px', text: 'carry over' }) : null), ...cells); };
-  const skillTable = subj => h('div', { class: 'tw' }, h('table', { class: 'sk' }, h('tr', {}, h('th', { text: subj === 'en' ? 'Reading & Writing' : 'Math' }), MODES.map(m => h('th', { text: MODE_SHORT[m] }))),
-    ALL_SKILLS.filter(s => s.subject === subj).map(s => skillRow(s.id))));
+  const TBL = { en: ['R&W: grammar', s => s.subject === 'en' && s.goal !== 'reading'], rw: ['R&W: other sections', s => s.goal === 'reading'], math: ['Math', s => s.subject === 'math'] };
+  const skillTable = k => h('div', { class: 'tw' }, h('table', { class: 'sk' }, h('tr', {}, h('th', { text: TBL[k][0] }), MODES.map(m => h('th', { text: MODE_SHORT[m] }))),
+    ALL_SKILLS.filter(TBL[k][1]).map(s => skillRow(s.id))));
   show(
     h('div', { class: 'top' }, h('h1', { text: 'Parent view' }), h('button', { class: 'linkbtn', onclick: () => signOut(auth) }, 'Sign out')),
     h('section', { class: 'card' },
@@ -344,7 +366,7 @@ function renderParent() {
       h('div', {}, h('div', { class: 'eyebrow', text: 'Last 21 days' }), h('div', { class: 'days', style: 'margin-top:6px' }, Array.from({ length: 21 }, (_, i) => t - 20 + i).map(d => h('i', { class: days.has(d) ? 'on' : '', title: isoFromDay(d) }))))),
     h('section', { class: 'card' }, h('h2', { text: 'Goal actions' }), h('p', { class: 'small muted', text: 'First-try accuracy on each action, last 20 times.' }),
       h('ul', { class: 'list' }, GOAL_TAGS.map(tag => { const hst = S.goals[tag] || [], a = acc(hst, 20); return h('li', {}, h('span', { class: 'pill ' + ({ g: 'good', m: 'mid', b: 'bad', n: 'none' })[accCls(a)], text: hst.length ? pct(a) : '—' }), h('div', {}, GOAL_LABEL[tag], h('span', { class: 'small muted', text: hst.length ? ` · ${hst.length} tries` : '' }))); }))),
-    h('section', { class: 'card' }, h('h2', { text: 'Skills by mode' }), h('p', { class: 'small muted', text: 'First-try accuracy, last 10 per mode. "Carry over" = missed recently; it is put first in his next sessions.' }), skillTable('en'), skillTable('math')),
+    h('section', { class: 'card' }, h('h2', { text: 'Skills by mode' }), h('p', { class: 'small muted', text: 'First-try accuracy, last 10 per mode. "Carry over" = missed recently; it is put first in his next sessions.' }), skillTable('en'), skillTable('rw'), skillTable('math')),
     h('section', { class: 'card' }, h('h2', { text: 'Sessions' }), sessions.length ? h('ul', { class: 'list' }, sessions.slice(0, 15).map(s => {
       const txt = reportText(s, settings.name); const b = h('button', { class: 'ghost sm', onclick: e => copyText(txt, e.currentTarget) }, 'Copy report');
       return h('li', {}, h('span', { class: 'pill ' + (s.n && s.right / s.n >= 0.85 ? 'good' : s.n && s.right / s.n >= 0.7 ? 'mid' : 'bad'), text: `${s.right}/${s.n}` }), h('div', {}, h('div', { text: `${fmtDate(isoFromDay(s.day))} · ${s.title}` }), h('details', {}, h('summary', { class: 'small muted', text: 'Show report' }), h('pre', { class: 'report', text: txt }))), b);
@@ -362,6 +384,7 @@ function settingsCard() {
   const test = h('input', { type: 'date', value: s.testDate || '' });
   const mixIn = Object.fromEntries(MODES.map(m => [m, h('input', { type: 'number', min: 0, max: 100, step: 5, value: mix[m] })]));
   const share = h('input', { type: 'number', min: 0, max: 100, step: 5, value: s.enShare ?? 50 });
+  const gshare = h('input', { type: 'number', min: 0, max: 100, step: 5, value: s.grammarShare ?? 75 });
   const off = h('input', { type: 'date' });
   const msg = h('p', { class: 'small muted', hidden: true });
   const persist = async () => {
@@ -369,6 +392,7 @@ function settingsCard() {
     s.mix = Object.fromEntries(MODES.map(m => [m, Math.max(0, Number(mixIn[m].value) || 0)]));
     if (!Object.values(s.mix).some(x => x > 0)) s.mix = { ...DEFAULT_MIX };
     s.enShare = Math.min(100, Math.max(0, Number(share.value) || 0));
+    s.grammarShare = Math.min(100, Math.max(0, Number(gshare.value) || 0));
     try { await setDoc(settingsDoc(), s); settings = s; msg.hidden = false; msg.textContent = 'Saved.'; } catch (e) { msg.hidden = false; msg.textContent = 'Couldn\'t save: ' + (e.code || e.message); }
   };
   return h('section', { class: 'card' }, h('h2', { text: 'Settings' }),
@@ -377,6 +401,7 @@ function settingsCard() {
     h('div', {}, h('div', { class: 'eyebrow', text: 'Mode mix (relative weights)' }), h('p', { class: 'small muted', text: 'Starting point for each skill. A skill shifts toward full questions on its own once his decoding is solid (85%+), and back toward decoding when it slips.' }),
       h('div', { class: 'mixrow' }, MODES.map(m => h('label', { class: 'f' }, MODE_LABEL[m], mixIn[m])))),
     h('label', { class: 'f' }, 'English share in mixed sessions (%)', share),
+    h('label', { class: 'f' }, 'Grammar share of English (%) · the rest is hard reading & writing', gshare),
     h('div', {}, h('div', { class: 'eyebrow', text: 'Days off (streak-safe)' }), h('p', { class: 'small muted', text: 'Federal holidays are built in.' }),
       s.offDays.length ? h('ul', { class: 'list' }, s.offDays.slice().sort().map(d => h('li', {}, h('div', { text: fmtDate(d) }), h('button', { class: 'linkbtn', onclick: () => { s.offDays = s.offDays.filter(x => x !== d); settings = s; setDoc(settingsDoc(), s).then(route); } }, 'Remove')))) : null,
       h('div', { class: 'row', style: 'margin-top:8px' }, off, h('button', { class: 'ghost sm', onclick: () => { if (!off.value) return; s.offDays = [...new Set([...s.offDays, off.value])]; settings = s; setDoc(settingsDoc(), s).then(route); } }, 'Add day off'))),

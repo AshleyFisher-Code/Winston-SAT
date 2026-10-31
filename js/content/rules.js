@@ -1,3 +1,4 @@
+import { RW_SKILLS, RW_RULES, RW_TEACH } from './rw_rules.js';
 // English skills, rule cards, one-line corrections, and the step-by-step teaching cards
 // (shown after two misses on the same skill in one session). All examples are original.
 
@@ -214,3 +215,8 @@ export const TEACH = {
     'Desmos shows x = 15.',
     'Look at your ask word: water. The answer is 15.'] },
 };
+
+// The other Reading & Writing sections (hard items only).
+EN_SKILLS.push(...RW_SKILLS);
+Object.assign(RULES, RW_RULES);
+Object.assign(TEACH, RW_TEACH);

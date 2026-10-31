@@ -11,7 +11,7 @@ export const MIN_GAP = 6; // positions between two cards of the same skill (5 ot
 export const DEFAULT_MIX = { rule: 30, decode: 35, full: 35 };
 export const SESSION_TYPES = {
   daily: { title: "Today's practice", n: 24, subjects: ['en', 'math'], modes: null, counts: true, desc: 'English + math, all three modes mixed · about 25 min' },
-  en: { title: 'English', n: 20, subjects: ['en'], modes: null, counts: true, desc: 'Boundaries + subject-verb, all three modes' },
+  en: { title: 'English', n: 20, subjects: ['en'], modes: null, counts: true, desc: 'Grammar + hard reading & writing questions, all three modes' },
   math: { title: 'Math', n: 20, subjects: ['math'], modes: null, counts: true, desc: 'Ask first + Desmos, all three modes' },
   reps: { title: 'Quick reps', n: 30, subjects: ['en', 'math'], modes: ['rule', 'decode'], counts: true, desc: 'First moves only, no full solving · high volume' },
   full: { title: 'Full questions', n: 16, subjects: ['en', 'math'], modes: ['full'], counts: true, desc: 'Every question start to finish, gates on' },
@@ -40,7 +40,7 @@ export function specFor(S, skill, mode, used = new Set()) {
   const sk = SKILL[skill];
   if (sk.subject === 'math') return { s: 'm', sub: skill, m: mode, seed: newSeed() };
   if (mode === 'rule') {
-    const v = Math.random() < 0.4 ? 'rule' : 'trig';
+    const v = sk.goal === 'reading' ? (Math.random() < 0.3 ? 'rule' : 'trap') : Math.random() < 0.4 ? 'rule' : 'trig';
     const it = pickItem(S, skill, used); used.add(it.id);
     return { s: 'en', id: it.id, m: 'rule', v, seed: newSeed() };
   }
@@ -84,9 +84,18 @@ export function buildSession(type, S, settings, today) {
   const per = {};
   if (T.subjects.length === 2) { const en = Math.round(n * ((settings && settings.enShare) ?? 50) / 100); per.en = en; per.math = n - en; } else per[T.subjects[0]] = n;
   const used = new Set(), specs = [];
+  // English splits into grammar (default 75%) and the other Reading & Writing sections (25%, hard items only).
+  const groups = [];
   for (const subj of T.subjects) {
-    const m = per[subj];
     const subSkills = skills.filter(id => SKILL[id].subject === subj);
+    if (subj !== 'en') { groups.push([subSkills, per[subj]]); continue; }
+    const gShare = ((settings && settings.grammarShare) ?? 75) / 100;
+    const rw = subSkills.filter(id => SKILL[id].goal === 'reading'), gr = subSkills.filter(id => SKILL[id].goal !== 'reading');
+    let nr = Math.round(per.en * (1 - gShare)); if (gShare < 1 && per.en >= 4 && nr < 1) nr = 1;
+    groups.push([gr, per.en - nr], [rw, nr]);
+  }
+  for (const [subSkills, m] of groups) {
+    if (!m || !subSkills.length) continue;
     const counts = allocate(S, subSkills, m, today);
     for (const [id, c] of Object.entries(counts)) for (let k = 0; k < c; k++) {
       const mode = wpick(modeWeights(S, id, settings && settings.mix, T.modes));

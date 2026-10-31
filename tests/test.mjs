@@ -2,7 +2,8 @@
 import { BOUNDARY } from '../js/content/boundaries.js';
 import { SV } from '../js/content/subjectverb.js';
 import { RULES, TEACH, EN_SKILLS, BD_SIDES } from '../js/content/rules.js';
-import { EN_ITEMS, bdChoices, svChoices, lureChoices, englishCard } from '../js/english.js';
+import { EN_ITEMS, bdChoices, svChoices, lureChoices, englishCard, trapChoices } from '../js/english.js';
+import { TRAP_LABEL, TRAP_NEAR, RW_SKILLS } from '../js/content/rw_rules.js';
 import { makeMath, MATH_SKILLS, parseNum } from '../js/math.js';
 import { cardFromSpec, checkStep, ALL_SKILLS } from '../js/cards.js';
 import { buildSession, skillOfSpec, followUp, followPos, MIN_GAP, SESSION_TYPES } from '../js/session.js';
@@ -78,6 +79,39 @@ function testCard(c, label) {
   }
 }
 
+/* ---------- Reading & Writing (other sections) ---------- */
+const RW = Object.values(EN_ITEMS).filter(x => x.kind === 'rw');
+const posCount = [0, 0, 0, 0];
+for (const it of RW) {
+  const L = it.id;
+  assert(RW_SKILLS.some(s => s.id === it.skill), `${L} unknown type ${it.t}`);
+  assert(it.o.length === 4 && new Set(it.o).size === 4, `${L} options`);
+  assert(Number.isInteger(it.a) && it.a >= 0 && it.a < 4, `${L} key`); posCount[it.a]++;
+  assert(it.tr.length === 4 && it.tr.filter(x => x == null).length === 1 && it.tr[it.a] == null, `${L} trap codes`);
+  it.tr.forEach((c, i) => { if (i !== it.a) assert(TRAP_LABEL[c], `${L} unknown trap ${c}`); });
+  assert(it.e.length === 4 && it.e.every(x => typeof x === 'string' && x.length > 10), `${L} explanations`);
+  assert(it.d && it.d.o.length >= 3 && it.d.o.length <= 4 && new Set(it.d.o).size === it.d.o.length && it.d.a >= 0 && it.d.a < it.d.o.length && it.d.why, `${L} decode`);
+  assert(typeof it.p === 'string' && it.p.length > 60 && typeof it.q === 'string', `${L} passage`);
+  assert(!/[\u2018\u2019\u201c\u201d]/.test(JSON.stringify(it)), `${L} smart quotes`);
+  if (it.t === 'quant') assert(it.tbl && it.tbl.cols.length && it.tbl.rows.every(r => r.length === it.tbl.cols.length), `${L} table shape`);
+  if (/underlined/.test(it.q)) assert(/\[\[[\s\S]+?\]\]/.test(it.p), `${L} underline missing`);
+  if (['trans', 'infer'].includes(it.t)) assert(/_{4,}/.test(it.p), `${L} blank missing`);
+  for (const [m, v] of [['decode'], ['full'], ['rule', 'trap'], ['rule', 'rule']]) for (const seed of [5, 91, 4040]) testCard(englishCard({ s: 'en', id: it.id, m, v, seed }), `${L} ${m}${v ? '/' + v : ''}`);
+  for (let seed = 1; seed <= 30; seed++) {
+    const c = englishCard({ s: 'en', id: it.id, m: 'rule', v: 'trap', seed });
+    const st = c.steps[0], right = st.fields[0].answer;
+    const code = Object.keys(TRAP_LABEL).find(k => TRAP_LABEL[k] === right);
+    assert(c.stem.flag && it.o.indexOf(c.stem.flag.text) !== it.a && it.tr[it.o.indexOf(c.stem.flag.text)] === code, `${L} trap card points at the right option`);
+    st.fields[0].choices.forEach(lbl => { const k = Object.keys(TRAP_LABEL).find(x => TRAP_LABEL[x] === lbl); if (k !== code) assert(!(TRAP_NEAR[code] || []).includes(k) && !(TRAP_NEAR[k] || []).includes(code), `${L} near-trap offered: ${code} vs ${k}`); });
+  }
+  const full = englishCard({ s: 'en', id: it.id, m: 'full', seed: 3 });
+  const ans = full.steps[1];
+  it.o.forEach((o, i) => { const w = ans.whyFor([o]); assert(Array.isArray(w) && w.length === (i === it.a ? 1 : 2), `${L} whyFor`); });
+}
+assert(RW.length >= 100, 'reading bank size ' + RW.length);
+assert(Math.min(...posCount) >= RW.length / 4 - 10, 'answer positions lopsided ' + posCount);
+console.log('R&W items:', RW.length, 'answer positions A-D:', posCount.join('/'));
+
 /* ---------- Math: independent re-computation from the question text ---------- */
 const num = s => Number(String(s).replace(/[−]/g, '-').replace(/[$,]/g, ''));
 const toJS = s => s.replace(/\^/g, '**').replace(/(\d)\s*([xy(])/g, '$1*$2').replace(/\)\s*\(/g, ')*(').replace(/\)(\d|x)/g, ')*$1');
@@ -135,6 +169,7 @@ for (let k = 0; k < 150; k++) for (const type of Object.keys(SESSION_TYPES)) {
   const last = {}; let gap = 99;
   sess.specs.forEach((sp, i) => { const key = skillOfSpec(sp); if (last[key] != null) gap = Math.min(gap, i - last[key]); last[key] = i; cardFromSpec(sp); });
   assert(gap >= MIN_GAP, `${type} same-skill gap ${gap}`);
+  if (type === 'en') { const rw = sess.specs.filter(sp => sp.s === 'en' && sp.v !== 'lure' && EN_ITEMS[sp.id].kind === 'rw').length, en = sess.specs.filter(sp => sp.v !== 'lure').length; assert(Math.abs(rw / en - 0.25) <= 0.06, `en session reading share ${rw}/${en}`); }
   const T = SESSION_TYPES[type];
   if (T.modes) assert(sess.specs.every(sp => T.modes.includes(sp.m)), `${type} wrong modes`);
   assert(sess.specs.every(sp => T.subjects.includes(sp.s === 'm' ? 'math' : 'en')), `${type} wrong subject`);

@@ -155,3 +155,15 @@ pre.report{white-space:pre-wrap;font-family:var(--mono);font-size:.8rem;backgrou
 @media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
 input[type=date]{-webkit-appearance:none;appearance:none;display:block;max-width:100%;min-height:52px;line-height:1.2}
 input[type=date]::-webkit-date-and-time-value{text-align:left}
+
+/* reading passages */
+.passage{display:flex;flex-direction:column;gap:12px}
+.ptext{font-size:1.05rem;line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}
+.ptext .blank{min-width:4em;transform:translateY(-3px)}
+.ul{text-decoration-thickness:2px;text-underline-offset:3px}
+.pq{margin:0;font-weight:700}
+table.data{border-collapse:collapse;font-size:.88rem;width:100%}
+table.data caption{text-align:left;font-weight:700;font-size:.85rem;padding-bottom:6px;color:var(--muted)}
+table.data th,table.data td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table.data th{background:var(--bg);font-weight:700}
+.flagged{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--bad);background:var(--bad-bg);border-radius:10px;padding:10px 12px}

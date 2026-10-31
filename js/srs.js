@@ -11,8 +11,8 @@ export const isoFromDay = n => new Date(n * DAY).toISOString().slice(0, 10);
 export const MODES = ['rule', 'decode', 'full'];
 export const MODE_LABEL = { rule: 'Rule', decode: 'Decode', full: 'Full question' };
 export const MODE_SHORT = { rule: 'Rule', decode: 'Decode', full: 'Full' };
-export const GOAL_TAGS = ['trigger', 'rule', 'boundary', 'subject', 'ask', 'desmos', 'answer'];
-export const GOAL_LABEL = { trigger: 'Pick the right goal (R&W)', rule: 'Rule recall', boundary: 'Split the boundary', subject: 'Find the real subject', ask: 'Ask first', desmos: 'Desmos equation', answer: 'Final answer' };
+export const GOAL_TAGS = ['trigger', 'rule', 'boundary', 'subject', 'read', 'trap', 'ask', 'desmos', 'answer'];
+export const GOAL_LABEL = { trigger: 'Pick the right goal (R&W)', rule: 'Rule recall', boundary: 'Split the boundary', subject: 'Find the real subject', read: 'Reading first move', trap: 'Spot the trap', ask: 'Ask first', desmos: 'Desmos equation', answer: 'Final answer' };
 
 export function blankState() {
   return { v: 1, skills: {}, goals: {}, items: {}, streak: { count: 0, best: 0, last: null, rest: 0 }, practiceDays: 0, sessions: [] };

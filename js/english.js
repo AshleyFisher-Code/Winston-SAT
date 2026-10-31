@@ -2,11 +2,16 @@
 import { BOUNDARY } from './content/boundaries.js';
 import { SV } from './content/subjectverb.js';
 import { RULES, BD_SIDES, BD_DECODE_WHY, BD_ANSWER_WHY, EN_SKILLS } from './content/rules.js';
+import { ITEMS as RW_CRAFT } from './content/rw_craft.js';
+import { ITEMS as RW_INFO } from './content/rw_info.js';
+import { ITEMS as RW_EXPR } from './content/rw_expr.js';
+import { TRAP_LABEL, TRAP_NEAR, TRAPS_FOR } from './content/rw_rules.js';
 import { rng, shuffleR, hash, pickR } from './util.js';
 
 export const EN_ITEMS = {};
 BOUNDARY.forEach(b => { EN_ITEMS[b.id] = { ...b, kind: 'bd', skill: 'bd-' + b.t }; });
 SV.forEach(v => { EN_ITEMS[v.id] = { ...v, kind: 'sv', skill: 'sv-' + v.t }; });
+[...RW_CRAFT, ...RW_INFO, ...RW_EXPR].forEach(x => { EN_ITEMS[x.id] = { ...x, kind: 'rw', skill: 'rw-' + x.t }; });
 export const itemsFor = skill => Object.values(EN_ITEMS).filter(x => x.skill === skill);
 
 const MARK = { comma: ', ', semi: '; ', period: '. ', colon: ': ', none: ' ', dash: '—' };
@@ -60,6 +65,7 @@ export function englishCard(sp) {
   const seed = sp.seed || 1;
   const card = { spec: sp, subject: 'en', skill: it.skill, mode: sp.m, itemId: it.id, steps: [] };
 
+  if (it.kind === 'rw' && !(sp.m === 'rule' && sp.v === 'rule')) return readingCard(sp, it, sk, card, seed);
   if (sp.m === 'rule' && sp.v === 'rule') { // the rule only, no sentence
     const R = RULES[it.skill], r = rng(seed ^ hash(it.skill + 'rule'));
     card.chip = 'Rule'; card.instr = 'Just the rule.';
@@ -112,5 +118,46 @@ export function englishCard(sp) {
     why: () => it.kind === 'bd' ? BD_ANSWER_WHY[it.skill] : `"${it.subj}" is ${it.num === 'sg' ? 'singular' : 'plural'}, so the verb is "${right.text}".` });
   card.chip = 'Full question'; card.summary = `${sk.name} (${it.id})`;
   card.correctText = right.text;
+  return card;
+}
+
+/* ---------- Reading & Writing (other sections) ---------- */
+const LET = 'ABCD';
+// Three trap names that can't be confused with the right one, type-relevant first.
+export function trapChoices(skill, code, seed) {
+  const r = rng(seed ^ hash(skill + code));
+  const near = new Set([code, ...(TRAP_NEAR[code] || [])]);
+  const ok = c => !near.has(c) && !(TRAP_NEAR[c] || []).includes(code);
+  const pref = shuffleR(r, (TRAPS_FOR[skill] || []).filter(ok));
+  const rest = shuffleR(r, Object.keys(TRAP_LABEL).filter(c => ok(c) && !pref.includes(c)));
+  return [code, ...pref.concat(rest).slice(0, 3)];
+}
+function readingCard(sp, it, sk, card, seed) {
+  card.stem = { kind: 'passage', p: it.p, tbl: it.tbl || null, q: it.q, choices: it.o };
+  card.area = sk.area;
+  const pickedWhy = (i, label) => (TRAP_LABEL[it.tr[i]] ? `${label} ${TRAP_LABEL[it.tr[i]]}: ` : label + ' ') + it.e[i];
+  if (sp.m === 'rule') { // spot the trap: why is this one wrong?
+    const r = rng(seed ^ hash(it.id + 'trap'));
+    const wrongIdx = shuffleR(r, [0, 1, 2, 3].filter(i => i !== it.a))[0];
+    const code = it.tr[wrongIdx];
+    const opts = shuffleR(r, trapChoices(it.skill, code, seed).map(c => TRAP_LABEL[c]));
+    card.chip = 'Spot the trap'; card.instr = null;
+    card.stem.flag = { letter: LET[wrongIdx], text: it.o[wrongIdx] };
+    card.stem.choices = null;
+    card.steps.push({ tag: 'trap', title: 'Spot the trap', instr: `Choice ${LET[wrongIdx]} is wrong. What kind of trap is it?`,
+      fields: [{ label: 'The trap', choices: opts, answer: TRAP_LABEL[code], long: true }],
+      why: () => `${TRAP_LABEL[code]}: ${it.e[wrongIdx]}` });
+    card.summary = `Spot the trap: ${sk.name} (${it.id})`;
+    return card;
+  }
+  const d = it.d;
+  card.steps.push({ tag: 'read', title: 'First move', instr: d.q, fields: [{ label: 'First move', choices: d.o, answer: d.o[d.a], long: true }], why: () => d.why });
+  if (sp.m === 'decode') { card.chip = 'Decode'; card.summary = `Decode: ${sk.name} (${it.id})`; return card; }
+  card.steps.push({ tag: 'answer', title: 'Now answer', instr: null,
+    fields: [{ label: 'Answer', choices: it.o, answer: it.o[it.a], long: true }],
+    why: () => it.e[it.a],
+    whyFor: sel => { const i = it.o.indexOf(sel[0]); return [i >= 0 && i !== it.a ? pickedWhy(i, `You picked ${LET[i]}.`) : null, `Right: ${it.e[it.a]}`].filter(Boolean); } });
+  card.chip = 'Full question'; card.summary = `${sk.name} (${it.id})`;
+  card.correctText = it.o[it.a];
   return card;
 }
