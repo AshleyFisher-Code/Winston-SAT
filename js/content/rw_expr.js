@@ -156,7 +156,7 @@ export const ITEMS = [
       '"Otherwise," means "if not," setting up what happens without the practice, but the study describes plots that used it.',
       '"Instead," signals a replacement, but the study replaces nothing; it backs up the previous claim.'
     ],
-    d: { q: TD, o: ['Addition (more of the same point)', 'Contrast', 'Concession (grants a point, then pushes back)', 'Sequence in time'], a: 0, why: 'The study adds evidence pointing the same way as the agronomists\' claim about reduced risk.' },
+    d: { q: TD, o: ['Support (evidence for the same point)', 'Contrast', 'Concession (grants a point, then pushes back)', 'Sequence in time'], a: 0, why: 'The study adds evidence pointing the same way as the agronomists\' claim about reduced risk.' },
   },
   {
     id: 'ei011', t: 'trans',
