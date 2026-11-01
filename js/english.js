@@ -13,6 +13,29 @@ BOUNDARY.forEach(b => { EN_ITEMS[b.id] = { ...b, kind: 'bd', skill: 'bd-' + b.t 
 SV.forEach(v => { EN_ITEMS[v.id] = { ...v, kind: 'sv', skill: 'sv-' + v.t }; });
 [...RW_CRAFT, ...RW_INFO, ...RW_EXPR].forEach(x => { EN_ITEMS[x.id] = { ...x, kind: 'rw', skill: 'rw-' + x.t }; });
 export const itemsFor = skill => Object.values(EN_ITEMS).filter(x => x.skill === skill);
+// Uploaded English bank (licensed book questions; lives behind the login, not in this repo).
+export const EN_BANK_SKILLS = ['gr-bound', 'gr-nonessential', 'gr-sv', 'gr-pron', 'gr-verb', 'gr-poss', 'gr-mod', 'gr-comp', 'rw-trans', 'rw-synth'];
+export function setEnBank(items) {
+  for (const [k, v] of Object.entries(EN_ITEMS)) if (v.bank) delete EN_ITEMS[k];
+  (items || []).forEach(x => { if (enUsable(x)) EN_ITEMS[x.id] = { ...x, kind: 'rw', skill: x.sk, bank: true, e: x.e }; });
+}
+export const enBankSize = () => Object.values(EN_ITEMS).filter(x => x.bank).length;
+const enUsable = x => x && EN_BANK_SKILLS.includes(x.sk) && x.conf !== 'low' && x.ok !== false && Array.isArray(x.o) && x.o.length === 4 && x.a >= 0 && x.a < 4 && x.d && Array.isArray(x.d.o);
+export function validateEnBank(data) {
+  const items = Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : null;
+  if (!items) return { ok: false, items: [], problems: ['The file is not a question list.'] };
+  const problems = [], ids = new Set();
+  items.forEach((x, n) => {
+    const w = x && x.id ? x.id : `item ${n + 1}`;
+    if (!x || !x.id || ids.has(x.id)) problems.push(`${w}: missing or duplicate id`); else ids.add(x.id);
+    if (!EN_BANK_SKILLS.includes(x.sk)) problems.push(`${w}: unknown skill "${x.sk}"`);
+    if (!Array.isArray(x.o) || x.o.length !== 4 || new Set(x.o).size !== 4) problems.push(`${w}: needs 4 different choices`);
+    if (!(x.a >= 0 && x.a < 4)) problems.push(`${w}: answer index`);
+    if (!x.d || !Array.isArray(x.d.o) || x.d.o.length < 3 || !(x.d.a >= 0 && x.d.a < x.d.o.length)) problems.push(`${w}: first-move step malformed`);
+    if (typeof x.p !== 'string' || typeof x.q !== 'string') problems.push(`${w}: passage or question missing`);
+  });
+  return { ok: problems.length === 0, items, problems };
+}
 
 const MARK = { comma: ', ', semi: '; ', period: '. ', colon: ': ', none: ' ', dash: '—' };
 const capFirst = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -65,7 +88,7 @@ export function englishCard(sp) {
   const seed = sp.seed || 1;
   const card = { spec: sp, subject: 'en', skill: it.skill, mode: sp.m, itemId: it.id, steps: [] };
 
-  if (it.kind === 'rw' && !(sp.m === 'rule' && sp.v === 'rule')) return readingCard(sp, it, sk, card, seed);
+  if (it.kind === 'rw' && !(sp.m === 'rule' && (sp.v === 'rule' || !it.tr))) return readingCard(sp, it, sk, card, seed);
   if (sp.m === 'rule' && sp.v === 'rule') { // the rule only, no sentence
     const R = RULES[it.skill], r = rng(seed ^ hash(it.skill + 'rule'));
     card.chip = 'Rule'; card.instr = 'Just the rule.';
@@ -138,9 +161,9 @@ export function trapChoices(skill, code, seed, also = []) {
 function readingCard(sp, it, sk, card, seed) {
   card.stem = { kind: 'passage', p: it.p, tbl: it.tbl || null, q: it.q, choices: it.o };
   card.area = sk.area;
-  const ex = i => it.e[i].replace(/^(Correct|False)\s*:\s*/, '').replace(/^./, c => c.toUpperCase());
-  const pickedWhy = (i, label) => { const c = trapFor(it, i).code; return (TRAP_LABEL[c] ? `${label} ${TRAP_LABEL[c]}. ` : label + ' ') + ex(i); };
-  if (sp.m === 'rule') { // spot the trap: why is this one wrong?
+  const ex = i => (Array.isArray(it.e) ? it.e[i] : i === it.a ? it.e || '' : '').replace(/^(Correct|False)\s*:\s*/, '').replace(/^./, c => c.toUpperCase());
+  const pickedWhy = (i, label) => { const c = it.tr ? trapFor(it, i).code : null; const x = ex(i); if (!x && !TRAP_LABEL[c]) return null; return (TRAP_LABEL[c] ? `${label} ${TRAP_LABEL[c]}. ` : label + ' ') + x; };
+  if (sp.m === 'rule' && it.tr) { // spot the trap: why is this one wrong?
     const r = rng(seed ^ hash(it.id + 'trap'));
     const wrongIdx = shuffleR(r, [0, 1, 2, 3].filter(i => i !== it.a))[0];
     const { code, also } = trapFor(it, wrongIdx);

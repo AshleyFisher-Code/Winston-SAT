@@ -5,6 +5,7 @@ import { buildSession, followUp, followPos, skillOfSpec, SESSION_TYPES, DEFAULT_
 import { dayNum, isoFromDay, dayFromISO, blankState, recordCard, streakView, completeDay, acc, skillStatus, GOAL_TAGS, GOAL_LABEL, MODES, MODE_LABEL, MODE_SHORT } from './srs.js';
 import { summarize, reportText } from './report.js';
 import { setBank, bankSize, validateBank, BANK_SKILLS, bankBySkill } from './bank.js';
+import { setEnBank, enBankSize, validateEnBank, itemsFor, EN_ITEMS } from './english.js';
 
 /* ---------- tiny DOM helper ---------- */
 const h = (tag, attrs = {}, ...kids) => {
@@ -29,11 +30,12 @@ const setNet = () => { net.hidden = navigator.onLine; };
 window.addEventListener('online', setNet); window.addEventListener('offline', setNet); setNet();
 
 /* ---------- data ---------- */
-let bankInfo = null;
+let bankInfo = null, enBankInfo = null;
 let user = null, role = null, S = null, settings = {}, unsubs = [], run = null, loadedOnce = false;
 const studentDoc = () => doc(db, 'sat_students', STUDENT_UID);
 const settingsDoc = () => doc(db, 'sat_settings', 'app');
 const bankDoc = () => doc(db, 'sat_content', 'math_bank');
+const enBankDoc = () => doc(db, 'sat_content', 'english_bank');
 let saveTimer = null;
 // Every change stamps updatedAt right away; the write follows shortly, or immediately on finish / when the app is hidden.
 function save(now = false) { S.updatedAt = Date.now(); clearTimeout(saveTimer); if (now) return flush(); saveTimer = setTimeout(flush, 500); }
@@ -59,6 +61,7 @@ onAuthStateChanged(auth, u => {
   if (role === 'other') return show(h('section', { class: 'card' }, h('h2', { text: 'This account isn\'t set up for SAT Practice.' }), h('p', { class: 'small muted', text: `v${APP_VERSION} · signed in as …${u.uid.slice(0, 4)}` }), h('button', { class: 'ghost', onclick: () => signOut(auth) }, 'Sign out')));
   unsubs.push(onSnapshot(settingsDoc(), snap => { settings = snap.exists() ? snap.data() : {}; if (loadedOnce && !run) route(); }, e => console.error(e)));
   // Licensed question bank (uploaded by the parent; lives behind the login, not in the public code).
+  unsubs.push(onSnapshot(enBankDoc(), snap => { setEnBank(snap.exists() ? snap.data().items : []); enBankInfo = snap.exists() ? snap.data() : null; if (loadedOnce && !run) route(); }, e => { console.warn('en bank', e.code); }));
   unsubs.push(onSnapshot(bankDoc(), snap => { setBank(snap.exists() ? snap.data().items : []); bankInfo = snap.exists() ? snap.data() : null; if (loadedOnce && !run) route(); }, e => { console.warn('bank', e.code); }));
   unsubs.push(onSnapshot(studentDoc(), snap => {
     if (run) return; // don't disturb a question in progress
@@ -361,7 +364,7 @@ function renderParent() {
   const last = sessions[0];
   const skillRow = id => { const s = S.skills[id] || {}; const cells = MODES.map(m => { const a = acc(s[m], 10), n = (s[m] || []).length; return h('td', { class: accCls(a), title: n ? `last ${Math.min(n, 10)}` : '' }, n ? pct(a) : '—'); });
     return h('tr', {}, h('td', {}, SKILL[id].name, s.owed ? h('span', { class: 'pill mid', style: 'margin-left:6px', text: 'carry over' }) : null), ...cells); };
-  const TBL = { en: ['R&W: grammar', s => s.subject === 'en' && s.goal !== 'reading'], rw: ['R&W: other sections', s => s.goal === 'reading'], math: ['Math', s => s.subject === 'math' && (bankSize() ? s.bank && (bankBySkill[s.id] || []).length : !s.bank)] };
+  const TBL = { en: ['R&W: grammar', s => s.subject === 'en' && s.goal !== 'reading' && itemsFor(s.id).length], rw: ['R&W: other sections', s => s.goal === 'reading'], math: ['Math', s => s.subject === 'math' && (bankSize() ? s.bank && (bankBySkill[s.id] || []).length : !s.bank)] };
   const skillTable = k => h('div', { class: 'tw' }, h('table', { class: 'sk' }, h('tr', {}, h('th', { text: TBL[k][0] }), MODES.map(m => h('th', { text: MODE_SHORT[m] }))),
     ALL_SKILLS.filter(TBL[k][1]).map(s => skillRow(s.id))));
   show(
@@ -422,15 +425,19 @@ function importCard() {
     msg.replaceChildren('Checking…');
     try {
       const data = JSON.parse(await file.files[0].text());
-      const v = validateBank(data);
+      const list = Array.isArray(data) ? data : data.items || [];
+      const english = list.length && list[0].o && list[0].p != null;
+      const v = english ? validateEnBank(data) : validateBank(data);
       if (!v.ok) { msg.replaceChildren(h('p', { class: 'err', text: `Not saved. ${v.problems.length} problem(s):` }), h('ul', {}, v.problems.slice(0, 12).map(p => h('li', { text: p })))); return; }
-      await setDoc(bankDoc(), { items: v.items, name: data.name || 'Math question bank', at: Date.now(), n: v.items.length });
-      msg.replaceChildren(h('p', { text: `Saved ${v.items.length} questions. They're in his next math session.` }));
+      await setDoc(english ? enBankDoc() : bankDoc(), { items: v.items, name: data.name || (english ? 'English question bank' : 'Math question bank'), at: Date.now(), n: v.items.length });
+      msg.replaceChildren(h('p', { text: `Saved ${v.items.length} ${english ? 'English' : 'math'} questions. They're in his next session.` }));
     } catch (e) { msg.replaceChildren(h('p', { class: 'err', text: e.code === 'permission-denied' ? 'The database rules are blocking this. Add the sat_content rule in Firebase, then try again.' : 'Couldn\'t read that file: ' + (e.message || e) })); }
   };
-  return h('section', { class: 'card' }, h('h2', { text: 'Math question bank' }),
+  const enSeen = Object.values(EN_ITEMS).filter(x => x.bank && S.items[x.id] != null).length;
+  return h('section', { class: 'card' }, h('h2', { text: 'Question banks' }),
+    h('p', { class: 'small muted', text: enBankInfo ? `English: ${enBankInfo.name || 'Bank'}: ${enBankSize()} usable questions · ${enSeen} seen so far. Uploaded ${new Date(enBankInfo.at).toLocaleDateString()}.` : 'English: no bank uploaded (built-in questions only).' }),
     h('p', { class: 'small muted', text: bankInfo ? `${bankInfo.name || 'Bank'}: ${bankSize()} usable questions · ${seen} seen so far. Uploaded ${new Date(bankInfo.at).toLocaleDateString()}. Math sessions use this bank instead of the built-in generator.` : 'No bank uploaded. Math sessions use the built-in generator.' }),
-    h('label', { class: 'f' }, bankInfo ? 'Replace with a new file' : 'Upload the question file', file), msg);
+    h('label', { class: 'f' }, 'Upload a question file (math or English; it replaces that bank)', file), msg);
 }
 function download() {
   const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), settings, progress: S }, null, 1)], { type: 'application/json' });

@@ -243,3 +243,35 @@ Object.assign(TEACH, {
   'geo-circ': { title: 'Circles', steps: [...ASK_DESMOS, '(x − h)² + (y − k)² = r²: center (h, k), radius r.', 'If the equation isn\'t in that form, type it into Desmos and read the center and radius from the graph.', 'Arc length = (angle/360)·2πr. Sector area = (angle/360)·πr².', ...END] },
   'geo-trig': { title: 'Trigonometry', steps: [...ASK_DESMOS, 'SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent.', 'sin(x) = cos(90° − x).', 'Radians: 180° = π.', ...END] },
 });
+
+// Grammar topics from the uploaded English bank (only appear once a bank with them is loaded).
+EN_SKILLS.push(
+  { id: 'gr-bound', goal: 'grammar', bank: true, name: 'Sentence boundaries (book set)', short: 'Boundaries' },
+  { id: 'gr-nonessential', goal: 'grammar', bank: true, name: 'Extra info: commas, dashes, names', short: 'Extra info' },
+  { id: 'gr-sv', goal: 'grammar', bank: true, name: 'Subject-verb agreement (book set)', short: 'Subject-verb' },
+  { id: 'gr-pron', goal: 'grammar', bank: true, name: 'Pronouns', short: 'Pronouns' },
+  { id: 'gr-verb', goal: 'grammar', bank: true, name: 'Verb tense and form', short: 'Verbs' },
+  { id: 'gr-poss', goal: 'grammar', bank: true, name: 'Possessives and plurals', short: 'Possessives' },
+  { id: 'gr-mod', goal: 'grammar', bank: true, name: 'Modifiers', short: 'Modifiers' },
+  { id: 'gr-comp', goal: 'grammar', bank: true, name: 'Comparisons and parallel structure', short: 'Comparisons' },
+);
+Object.assign(RULES, {
+  'gr-bound': { q: 'Choices differ only in punctuation. What do you do first?', a: 'Decide whether each side of the blank can stand alone as a sentence', w: ['Pick the choice with the fewest commas', 'Pick whatever sounds like a pause', 'Look for the longest choice'] },
+  'gr-nonessential': { q: 'Extra (removable) information in the middle of a sentence is set off by…', a: 'Matching marks on both sides: two commas, two dashes, or two parentheses', w: ['One comma before it only', 'A semicolon', 'Nothing, if it is short'] },
+  'gr-sv': { q: 'The verb must agree with…', a: 'Its real subject, even when other nouns sit in between', w: ['The noun closest to the blank', 'The first noun in the paragraph', 'Whichever sounds right'] },
+  'gr-pron': { q: 'Before picking it / they / its / their, find…', a: 'The noun the pronoun replaces, and check singular or plural', w: ['The nearest noun to the blank', 'The subject of the next sentence', 'The shortest choice'] },
+  'gr-verb': { q: 'Verb tense questions: what decides the answer?', a: 'The time words and other verbs around the blank', w: ['The most complicated tense', 'Present tense is always right', 'The verb that sounds formal'] },
+  'gr-poss': { q: 'its vs. it\'s:', a: 'its = belonging to it; it\'s = it is', w: ['it\'s = belonging to it', 'They mean the same thing', 'its\' is the plural possessive'] },
+  'gr-mod': { q: 'An intro phrase like "Built in 1890," must be followed directly by…', a: 'The noun it describes', w: ['A verb', 'Any noun in the sentence', 'A comma and a pronoun'] },
+  'gr-comp': { q: '"Her score was higher than ___ of her brother." What goes in the blank?', a: '"that" (compare score to score)', w: ['nothing (compare score to brother)', '"those"', '"it"'] },
+});
+Object.assign(TEACH, {
+  'gr-bound': TEACH['bd-ss'],
+  'gr-sv': TEACH['sv-prep'],
+  'gr-nonessential': { title: 'Extra information', steps: ['Find the blank.', 'Find the phrase that could be removed without breaking the sentence.', 'Read the sentence without it. Still a full sentence? Then it is extra.', 'Extra information needs the same mark on both sides: comma … comma, or dash … dash.', 'A name right after a title with no "the" ("the biologist Ana Ruiz") is needed: no commas.', 'Pick the choice that closes the extra part with the mark that opened it.'] },
+  'gr-pron': { title: 'Pronouns', steps: ['Find the blank pronoun.', 'Look back: which noun does it replace?', 'Is that noun singular or plural?', 'Singular thing → it / its. Plural → they / their.', 'Watch for traps: "the company" is singular even though it has many people.', 'Pick the pronoun that matches.'] },
+  'gr-verb': { title: 'Verb tense and form', steps: ['Find the blank verb.', 'Look for time words: "in 1920", "now", "since".', 'Look at the other verbs in the sentence and the one before it.', 'Keep the same time unless a time word changes it.', 'If the sentence has no main verb yet, the blank needs a real verb, not an -ing word.', 'Pick the matching form.'] },
+  'gr-poss': { title: 'Possessives and plurals', steps: ['Find the word with the apostrophe choices.', 'Ask: does it own the next word? If not, no apostrophe.', 'One owner: add \'s (the bird\'s nest).', 'Many owners ending in s: add only \' (the birds\' nests).', 'its = belonging to it. it\'s = it is. their = belonging to them.', 'Pick the choice that matches.'] },
+  'gr-mod': { title: 'Modifiers', steps: ['Find the intro phrase before the comma.', 'Ask: who or what is it describing?', 'That noun must come right after the comma.', 'Example: "Built in 1890, the church…", not "Built in 1890, people…"', 'Cross out choices that start with a different noun.', 'Pick the one that starts with the right noun.'] },
+  'gr-comp': { title: 'Comparisons', steps: ['Find the two things being compared.', 'They must be the same kind of thing: a score with a score, not a score with a person.', 'Use "that of" (singular) or "those of" (plural) to stay like-with-like.', 'Lists must be parallel: all nouns, all -ing words, or all full phrases.', 'Cross out choices that compare unlike things.', 'Pick the matching comparison.'] },
+});

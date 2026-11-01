@@ -50,8 +50,8 @@ export function specFor(S, skill, mode, used = new Set()) {
   if (sk.subject === 'math' && sk.bank) { const it = pickFrom(S, bankBySkill[skill] || [], used); used.add(it.id); return { s: 'mb', id: it.id, m: mode, seed: newSeed() }; }
   if (sk.subject === 'math') return { s: 'm', sub: skill, m: mode, seed: newSeed() };
   if (mode === 'rule') {
-    const v = sk.goal === 'reading' ? (Math.random() < 0.3 ? 'rule' : 'trap') : Math.random() < 0.4 ? 'rule' : 'trig';
     const it = pickItem(S, skill, used); used.add(it.id);
+    const v = it.kind === 'rw' ? (it.tr && Math.random() >= 0.3 ? 'trap' : 'rule') : Math.random() < 0.4 ? 'rule' : 'trig';
     return { s: 'en', id: it.id, m: 'rule', v, seed: newSeed() };
   }
   const it = pickItem(S, skill, used); used.add(it.id);
@@ -90,7 +90,7 @@ export function buildSession(type, S, settings, today) {
   const T = SESSION_TYPES[type];
   const n = T.n;
   const mathIds = new Set(mathSkillIds());
-  const skills = ALL_SKILLS.filter(s => T.subjects.includes(s.subject) && (s.subject !== 'math' || mathIds.has(s.id))).map(s => s.id);
+  const skills = ALL_SKILLS.filter(s => T.subjects.includes(s.subject) && (s.subject !== 'math' ? itemsFor(s.id).length > 0 : mathIds.has(s.id))).map(s => s.id);
   // split between subjects
   const per = {};
   if (T.subjects.length === 2) { const en = Math.round(n * ((settings && settings.enShare) ?? 50) / 100); per.en = en; per.math = n - en; } else per[T.subjects[0]] = n;

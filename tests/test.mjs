@@ -224,5 +224,23 @@ for (let k = 0; k < 150; k++) for (const type of Object.keys(SESSION_TYPES)) {
   setBank([]);
 }
 
+/* ---------- uploaded English bank ---------- */
+// Run with ENBANK=/path/to/english_bank.json to check a real file.
+{
+  const { setEnBank, validateEnBank, englishCard: ec, EN_ITEMS: EI } = await import('../js/english.js');
+  const fs = await import('fs');
+  const sample = [{ id: 'g-01', sk: 'gr-poss', p: 'The museum reopened ______ doors last spring.', q: 'Which choice completes the text so that it conforms to the conventions of Standard English?', o: ['it\'s', 'its', 'its\'', 'their'], a: 1, conf: 'high', e: 'its = belonging to the museum.', d: { q: 'Does the word need to show ownership, a plural, or both?', o: ['Ownership', 'A plural', 'Both'], a: 0, why: 'The doors belong to the museum.' } }];
+  const raw = process.env.ENBANK ? JSON.parse(fs.readFileSync(process.env.ENBANK, 'utf8')) : sample;
+  const items = Array.isArray(raw) ? raw : raw.items;
+  const v = validateEnBank(items); assert(v.ok, 'english bank validation: ' + v.problems.slice(0, 5).join('; '));
+  setEnBank(items);
+  const bank = Object.values(EI).filter(x => x.bank);
+  for (const it of bank) for (const [m, vv] of [['rule', 'rule'], ['decode'], ['full']]) testCard(ec({ s: 'en', id: it.id, m, v: vv, seed: 3 }), `enbank ${it.id} ${m}`);
+  const S2 = blankState();
+  for (let k = 0; k < 20; k++) buildSession('en', S2, {}, 20000).specs.forEach(sp => cardFromSpec(sp));
+  if (process.env.ENBANK) console.log('english bank usable:', bank.length, 'of', items.length);
+  setEnBank([]);
+}
+
 console.log(`${n} checks, ${fails.length} failures`);
 if (fails.length) { console.log([...new Set(fails)].slice(0, 60).join('\n')); process.exit(1); }
