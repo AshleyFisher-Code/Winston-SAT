@@ -15,7 +15,7 @@ export const GOAL_TAGS = ['trigger', 'rule', 'boundary', 'subject', 'read', 'tra
 export const GOAL_LABEL = { trigger: 'Pick the right goal (R&W)', rule: 'Rule recall', boundary: 'Split the boundary', subject: 'Find the real subject', read: 'Reading first move', trap: 'Spot the trap', ask: 'Ask first', desmos: 'Desmos equation', answer: 'Final answer' };
 
 export function blankState() {
-  return { v: 1, skills: {}, goals: {}, items: {}, streak: { count: 0, best: 0, last: null, rest: 0 }, practiceDays: 0, sessions: [] };
+  return { v: 1, skills: {}, goals: {}, items: {}, ret: {}, streak: { count: 0, best: 0, last: null, rest: 0 }, practiceDays: 0, sessions: [] };
 }
 const push20 = (arr, x) => { arr.push(x); if (arr.length > 20) arr.shift(); };
 export function skillRec(S, id) { return S.skills[id] || (S.skills[id] = { rule: [], decode: [], full: [], n: 0, last: null, owed: 0, missDay: null }); }
@@ -25,7 +25,10 @@ export function skillRec(S, id) { return S.skills[id] || (S.skills[id] = { rule:
 // no repeat in this session, but the skill is put first in a later session.
 export function recordCard(S, card, ok, stepOk, today, procMiss = false) {
   stepOk.forEach((o, i) => { if (o == null) return; const tag = card.steps[i].tag; push20(S.goals[tag] || (S.goals[tag] = []), o ? 1 : 0); });
-  if (card.itemId) S.items[card.itemId] = today;
+  if (card.itemId) {
+    S.items[card.itemId] = today;
+    if (card.mode !== 'rule' || card.stem.flag) { S.ret = S.ret || {}; S.ret[card.itemId] = ok ? (S.ret[card.itemId] || 0) + 1 : 0; }
+  }
   if (card.lure || card.teach) return;
   const s = skillRec(S, card.skill);
   push20(s[card.mode], ok ? 1 : 0); s.n++;

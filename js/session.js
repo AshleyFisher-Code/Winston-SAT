@@ -6,6 +6,7 @@ import { ALL_SKILLS, SKILL } from './cards.js';
 import { itemsFor, EN_ITEMS } from './english.js';
 import { skillAcc, acc } from './srs.js';
 import { newSeed, shuffle, pickOne } from './util.js';
+import { BANK, bankBySkill, bankSize } from './bank.js';
 
 export const MIN_GAP = 6; // positions between two cards of the same skill (5 other cards in between)
 export const DEFAULT_MIX = { rule: 30, decode: 35, full: 35 };
@@ -28,16 +29,25 @@ function modeWeights(S, skill, mix, allowed) {
 }
 const wpick = w => { const tot = Object.values(w).reduce((a, b) => a + b, 0); let x = Math.random() * tot; for (const [k, v] of Object.entries(w)) { x -= v; if (x <= 0 && v > 0) return k; } return Object.keys(w).find(k => w[k] > 0); };
 
-// Least-recently-seen English item for a skill (avoiding ones already used this session).
-function pickItem(S, skill, used) {
-  const list = itemsFor(skill).filter(x => !used.has(x.id));
-  const pool = list.length ? list : itemsFor(skill);
-  const sorted = pool.slice().sort((a, b) => (S.items[a.id] ?? -1e9) - (S.items[b.id] ?? -1e9));
+// No-repeat rule: never-seen items first, then ones he missed, then seen-but-not-mastered (oldest first).
+// An item he gets right twice in a row is retired and only comes back once everything else is used up.
+export const RETIRE_AFTER = 2;
+export function pickFrom(S, all, used) {
+  const ret = S.ret || {};
+  const list = all.filter(x => !used.has(x.id));
+  const pool = list.length ? list : all;
+  const seen = x => S.items[x.id] != null;
+  const tiers = [pool.filter(x => !seen(x)), pool.filter(x => seen(x) && (ret[x.id] || 0) === 0), pool.filter(x => seen(x) && (ret[x.id] || 0) > 0 && (ret[x.id] || 0) < RETIRE_AFTER), pool];
+  const tier = tiers.find(t => t.length);
+  const sorted = tier.slice().sort((a, b) => (S.items[a.id] ?? -1e9) - (S.items[b.id] ?? -1e9));
   return pickOne(sorted.slice(0, Math.max(2, Math.ceil(sorted.length / 3))));
 }
+const pickItem = (S, skill, used) => pickFrom(S, itemsFor(skill), used);
+export const mathSkillIds = () => (bankSize() ? Object.keys(bankBySkill).filter(k => bankBySkill[k].length) : ALL_SKILLS.filter(s => s.subject === 'math' && !s.bank).map(s => s.id));
 // One spec for a skill in a mode.
 export function specFor(S, skill, mode, used = new Set()) {
   const sk = SKILL[skill];
+  if (sk.subject === 'math' && sk.bank) { const it = pickFrom(S, bankBySkill[skill] || [], used); used.add(it.id); return { s: 'mb', id: it.id, m: mode, seed: newSeed() }; }
   if (sk.subject === 'math') return { s: 'm', sub: skill, m: mode, seed: newSeed() };
   if (mode === 'rule') {
     const v = sk.goal === 'reading' ? (Math.random() < 0.3 ? 'rule' : 'trap') : Math.random() < 0.4 ? 'rule' : 'trig';
@@ -48,7 +58,7 @@ export function specFor(S, skill, mode, used = new Set()) {
   return { s: 'en', id: it.id, m: mode, seed: newSeed() };
 }
 const lureSpec = (S, used) => { const it = pickItem(S, 'bd-adv', used); used.add(it.id); return { s: 'en', id: it.id, m: 'rule', v: 'lure', seed: newSeed() }; };
-export const skillOfSpec = sp => (sp.t === 'teach' ? 'teach:' + sp.skill : sp.v === 'lure' ? 'lure' : sp.s === 'm' ? sp.sub : EN_ITEMS[sp.id].skill);
+export const skillOfSpec = sp => (sp.t === 'teach' ? 'teach:' + sp.skill : sp.v === 'lure' ? 'lure' : sp.s === 'm' ? sp.sub : sp.s === 'mb' ? (BANK[sp.id] ? BANK[sp.id].sk : 'bank') : EN_ITEMS[sp.id].skill);
 
 // How many cards each skill gets. Owed (recently missed) skills first, then weakest / least recent.
 function allocate(S, skills, n, today) {
@@ -79,7 +89,8 @@ export function arrange(specs) {
 export function buildSession(type, S, settings, today) {
   const T = SESSION_TYPES[type];
   const n = T.n;
-  const skills = ALL_SKILLS.filter(s => T.subjects.includes(s.subject)).map(s => s.id);
+  const mathIds = new Set(mathSkillIds());
+  const skills = ALL_SKILLS.filter(s => T.subjects.includes(s.subject) && (s.subject !== 'math' || mathIds.has(s.id))).map(s => s.id);
   // split between subjects
   const per = {};
   if (T.subjects.length === 2) { const en = Math.round(n * ((settings && settings.enShare) ?? 50) / 100); per.en = en; per.math = n - en; } else per[T.subjects[0]] = n;

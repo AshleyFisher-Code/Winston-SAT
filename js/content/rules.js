@@ -220,3 +220,26 @@ export const TEACH = {
 EN_SKILLS.push(...RW_SKILLS);
 Object.assign(RULES, RW_RULES);
 Object.assign(TEACH, RW_TEACH);
+
+// Step-by-step cards for the uploaded math bank (shown after two misses on a skill in one session).
+const ASK_DESMOS = ['Read the last line first. Write the ask on your paper in 1–2 words.'];
+const END = ['Before you answer, look at your ask word again. Is your number that quantity?'];
+Object.assign(TEACH, {
+  'alg-lin': { title: 'Linear equations', steps: [...ASK_DESMOS, 'Type the equation into Desmos exactly as written.', 'Desmos shows x = something on the line.', 'If they asked for an expression (like 2x + 1), plug that x in.', ...END] },
+  'alg-func': { title: 'Linear functions', steps: [...ASK_DESMOS, 'Slope = rate of change ("per"). y-intercept = starting value (when x = 0).', 'Type the function as y = mx + b. Click the line to read points.', 'For "what does 45 represent": decide if 45 is the slope (per each) or the intercept (start).', ...END] },
+  'alg-sys': { title: 'Systems of equations', steps: [...ASK_DESMOS, 'Type equation 1 on line 1 and equation 2 on line 2.', 'Click where the lines cross: that point is (x, y).', '"No solution" = parallel lines (same slope, different intercept). "Infinitely many" = the same line.', ...END] },
+  'alg-ineq': { title: 'Linear inequalities', steps: [...ASK_DESMOS, 'Type the inequality into Desmos; it shades the solutions.', 'Test each choice: is the point in the shaded region?', 'If you multiply or divide by a negative, flip the sign.', ...END] },
+  'adv-quad': { title: 'Quadratics', steps: [...ASK_DESMOS, 'Type it as y = … and look at the parabola.', 'Solutions = x-intercepts. Vertex = the turning point. y-intercept = where x = 0.', 'Check which one they asked for: one solution, the sum, the vertex, the minimum value…', ...END] },
+  'adv-exp': { title: 'Exponential functions', steps: [...ASK_DESMOS, 'Growth: start × (1 + rate)^time. Decay: start × (1 − rate)^time.', 'Doubling every k units: start × 2^(x/k).', 'Type it into Desmos and read the y-value at the time they asked about.', ...END] },
+  'adv-func': { title: 'Functions', steps: [...ASK_DESMOS, 'f(3) means put 3 in for x (an output). f(x) = 3 means find the x that gives 3 (an input).', 'Type f(x) = … on line 1, then f(3) on line 2.', 'For a transformation, type both and compare the graphs.', ...END] },
+  'adv-poly': { title: 'Expressions and equations', steps: [...ASK_DESMOS, 'Equivalent expressions: type the original as y = … and each choice as y = …; the matching graph lies on top.', 'For an equation, type it and read the solutions.', 'Watch for extra solutions with square roots or fractions: check each one.', ...END] },
+  'psd-pct': { title: 'Percentages', steps: [...ASK_DESMOS, 'p% of x = (p/100)·x.', 'Increase by p%: x·(1 + p/100). Decrease by p%: x·(1 − p/100).', 'Percent change = (new − old) / old × 100.', ...END] },
+  'psd-ratio': { title: 'Ratios, rates and units', steps: [...ASK_DESMOS, 'Write the units next to every number.', 'Set up a proportion with the same order on both sides, or multiply by conversion fractions so units cancel.', 'Type the proportion into Desmos and read x.', ...END] },
+  'psd-stats': { title: 'Statistics', steps: [...ASK_DESMOS, 'Mean = total ÷ count. To find a missing value, find the total first.', 'Median = middle value in order. Outliers move the mean, not the median.', 'Larger spread = larger standard deviation.', ...END] },
+  'psd-prob': { title: 'Probability and tables', steps: [...ASK_DESMOS, 'Find the group the question is limited to ("of the students who…"). That total is the denominator.', 'The count that also matches the condition is the numerator.', 'Probability = numerator ÷ denominator.', ...END] },
+  'psd-data': { title: 'Graphs and models', steps: [...ASK_DESMOS, 'Read the axis labels and units first.', 'Slope of a line of best fit = change in y per 1 unit of x.', 'To predict, put the x-value into the model.', ...END] },
+  'geo-area': { title: 'Area, volume and angles', steps: [...ASK_DESMOS, 'Write the formula from the reference sheet.', 'Fill in what you know and type the equation into Desmos to solve.', 'Angles on a straight line add to 180; around a point to 360.', ...END] },
+  'geo-tri': { title: 'Triangles', steps: [...ASK_DESMOS, 'Right triangle: a² + b² = c². Special triangles: 30-60-90 and 45-45-90.', 'Similar triangles: corresponding sides are in the same ratio.', 'Angles in a triangle add to 180.', ...END] },
+  'geo-circ': { title: 'Circles', steps: [...ASK_DESMOS, '(x − h)² + (y − k)² = r²: center (h, k), radius r.', 'If the equation isn\'t in that form, type it into Desmos and read the center and radius from the graph.', 'Arc length = (angle/360)·2πr. Sector area = (angle/360)·πr².', ...END] },
+  'geo-trig': { title: 'Trigonometry', steps: [...ASK_DESMOS, 'SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent.', 'sin(x) = cos(90° − x).', 'Radians: 180° = π.', ...END] },
+});

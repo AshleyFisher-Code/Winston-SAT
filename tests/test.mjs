@@ -196,5 +196,32 @@ for (let k = 0; k < 150; k++) for (const type of Object.keys(SESSION_TYPES)) {
   assert(/First try: 0\/1/.test(txt) && /Desmos equation: 0\/1/.test(txt) && /Step-by-step teaching shown/.test(txt), 'report text\n' + txt);
 }
 
+/* ---------- uploaded math bank (licensed; not in this repo) ---------- */
+// Run with BANK=/path/to/bank.json to check a real bank file; otherwise a tiny sample is used.
+{
+  const { setBank, validateBank, bankCard, BANK, bankBySkill, gridCheck } = await import('../js/bank.js');
+  const { pickFrom, RETIRE_AFTER } = await import('../js/session.js');
+  const fs = await import('fs');
+  const sample = [
+    { id: 't-01', sk: 'psd-pct', stem: 'What is 20% of 50?', choices: ['5', '10', '20', '40'], ans: 'B', ask: { o: ['20% of 50', '50% of 20', 'the percent', 'the whole'], a: 0 }, eq: { o: ['y=0.2(50)', 'y=0.2+50', 'y=50/0.2', 'y=2(50)'], a: 0 }, why: '0.2 × 50 = 10.' },
+    { id: 't-02', sk: 'alg-lin', stem: 'If 3x + 4 = 19, what is x?', choices: null, ans: ['5'], ask: { o: ['x', '3x', '3x + 4', '19'], a: 0 }, eq: null, why: 'x = 5.' },
+    { id: 't-03', sk: 'alg-lin', stem: 'If 2x = 3, what is x?', choices: null, ans: ['3/2', '1.5'], ask: { o: ['x', '2x', '3', 'x/2'], a: 0 }, eq: { o: ['2x=3', '3x=2', 'x=2/3', 'x+2=3'], a: 0 }, why: '1.5', figOk: false },
+  ];
+  const path = process.env.BANK;
+  const items = path ? JSON.parse(fs.readFileSync(path, 'utf8')) : sample;
+  const v = validateBank(items); assert(v.ok, 'bank validation: ' + v.problems.slice(0, 5).join('; '));
+  setBank(items);
+  assert(!BANK['t-03'] || path, 'figure-only items are skipped');
+  for (const id of Object.keys(BANK)) for (const m of ['rule', 'decode', 'full']) testCard(bankCard({ s: 'mb', id, m, seed: 1 }), `bank ${id} ${m}`);
+  for (const it of Object.values(BANK)) if (!it.choices) for (const a of it.ans) assert(gridCheck(it, a), `${it.id} grid accepts ${a}`);
+  if (!path) { assert(gridCheck(BANK['t-02'], ' 5.0 ') && !gridCheck(BANK['t-02'], '6'), 'grid check'); }
+  // no-repeat: unseen first; right twice → retired until the rest are used
+  const st = blankState(); const all = Object.values(BANK);
+  const picked = new Set(); for (let i = 0; i < all.length; i++) { const it = pickFrom(st, all, picked); assert(!picked.has(it.id), 'no repeat within a session'); picked.add(it.id); }
+  if (all.length >= 2) { st.items[all[0].id] = 5; st.ret[all[0].id] = RETIRE_AFTER; for (let k = 0; k < 40; k++) assert(pickFrom(st, all, new Set()).id !== all[0].id, 'retired item stays out'); }
+  if (path) console.log('bank items usable:', Object.keys(BANK).length, 'of', items.length);
+  setBank([]);
+}
+
 console.log(`${n} checks, ${fails.length} failures`);
 if (fails.length) { console.log([...new Set(fails)].slice(0, 60).join('\n')); process.exit(1); }

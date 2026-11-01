@@ -4,8 +4,9 @@ import { englishCard } from './english.js';
 import { makeMath, MATH_SKILLS, parseNum, EQ_HINT } from './math.js';
 import { TEACH, EN_SKILLS } from './content/rules.js';
 import { fmt } from './util.js';
+import { BANK_SKILLS, bankCard } from './bank.js';
 
-export const ALL_SKILLS = [...EN_SKILLS.map(s => ({ ...s, subject: 'en' })), ...MATH_SKILLS.map(s => ({ ...s, subject: 'math', goal: 'math' }))];
+export const ALL_SKILLS = [...EN_SKILLS.map(s => ({ ...s, subject: 'en' })), ...MATH_SKILLS.map(s => ({ ...s, subject: 'math', goal: 'math' })), ...BANK_SKILLS.map(s => ({ ...s, subject: 'math', goal: 'math', bank: true, short: s.name }))];
 export const SKILL = Object.fromEntries(ALL_SKILLS.map(s => [s.id, s]));
 const lastLine = t => t.split('\n').pop().split(/(?<=[.?!])\s+/).pop();
 export const DESMOS_URL = 'https://www.desmos.com/calculator';
@@ -38,6 +39,7 @@ export function cardFromSpec(sp) {
   if (sp.t === 'teach') return teachCard(sp);
   if (sp.s === 'en') return englishCard(sp);
   if (sp.s === 'm') return mathCard(sp);
+  if (sp.s === 'mb') return bankCard(sp);
   throw new Error('bad spec');
 }
 // Checks one step. Returns ok per field.
