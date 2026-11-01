@@ -180,6 +180,7 @@ function passageView(st) {
     h('div', { class: 'ptext' }, richText(st.p)),
     t ? h('div', { class: 'tw' }, h('table', { class: 'data' }, t.title ? h('caption', { text: t.title }) : null,
       h('tr', {}, t.cols.map(c => h('th', { text: c }))), t.rows.map(row => h('tr', {}, row.map(c => h('td', { text: c })))))) : null,
+    st.fig ? h('p', { class: 'small muted figure', text: 'Graph: ' + st.fig }) : null,
     h('p', { class: 'pq', text: st.q }),
     st.flag ? h('div', { class: 'flagged' }, h('span', { class: 'pill bad', text: 'Wrong' }), h('div', {}, h('b', { text: st.flag.letter + ') ' }), st.flag.text)) : null);
 }

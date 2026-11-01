@@ -159,7 +159,8 @@ export function trapChoices(skill, code, seed, also = []) {
   return [code, ...pref.concat(rest).slice(0, 3)];
 }
 function readingCard(sp, it, sk, card, seed) {
-  card.stem = { kind: 'passage', p: it.p, tbl: it.tbl || null, q: it.q, choices: it.o };
+  card.stem = { kind: 'passage', p: it.p, tbl: it.tbl || null, fig: it.fig || null, q: it.q, choices: it.o };
+  if (it.src) card.src = it.src;
   card.area = sk.area;
   const ex = i => (Array.isArray(it.e) ? it.e[i] : i === it.a ? it.e || '' : '').replace(/^(Correct|False)\s*:\s*/, '').replace(/^./, c => c.toUpperCase());
   const pickedWhy = (i, label) => { const c = it.tr ? trapFor(it, i).code : null; const x = ex(i); if (!x && !TRAP_LABEL[c]) return null; return (TRAP_LABEL[c] ? `${label} ${TRAP_LABEL[c]}. ` : label + ' ') + x; };
