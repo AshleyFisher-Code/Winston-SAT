@@ -179,7 +179,9 @@ function readingCard(sp, it, sk, card, seed) {
     return card;
   }
   const d = it.d;
-  if (d) card.steps.push({ tag: 'read', title: 'First move', instr: d.q, fields: [{ label: 'First move', choices: d.o, answer: d.o[d.a], long: true }], why: () => d.why });
+  // Uploaded-bank first-move options are shuffled (sources often list the right one first); boundary labels keep their fixed order.
+  const dOpts = d && it.bank && it.skill !== 'gr-bound' ? shuffleR(rng(seed ^ hash(it.id + 'd')), d.o) : d && d.o;
+  if (d) card.steps.push({ tag: 'read', title: 'First move', instr: d.q, fields: [{ label: 'First move', choices: dOpts, answer: d.o[d.a], long: true }], why: () => d.why });
   if (sp.m === 'decode' && d) { card.chip = 'Decode'; card.summary = `Decode: ${sk.name} (${it.id})`; return card; }
   card.steps.push({ tag: 'answer', title: 'Now answer', instr: null,
     fields: [{ label: 'Answer', choices: it.o, answer: it.o[it.a], long: true }],
