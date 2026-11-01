@@ -208,7 +208,8 @@ for (let k = 0; k < 150; k++) for (const type of Object.keys(SESSION_TYPES)) {
     { id: 't-03', sk: 'alg-lin', stem: 'If 2x = 3, what is x?', choices: null, ans: ['3/2', '1.5'], ask: { o: ['x', '2x', '3', 'x/2'], a: 0 }, eq: { o: ['2x=3', '3x=2', 'x=2/3', 'x+2=3'], a: 0 }, why: '1.5', figOk: false },
   ];
   const path = process.env.BANK;
-  const items = path ? JSON.parse(fs.readFileSync(path, 'utf8')) : sample;
+  const raw = path ? JSON.parse(fs.readFileSync(path, 'utf8')) : sample;
+  const items = Array.isArray(raw) ? raw : raw.items;
   const v = validateBank(items); assert(v.ok, 'bank validation: ' + v.problems.slice(0, 5).join('; '));
   setBank(items);
   assert(!BANK['t-03'] || path, 'figure-only items are skipped');
