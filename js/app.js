@@ -36,6 +36,7 @@ const studentDoc = () => doc(db, 'sat_students', STUDENT_UID);
 const settingsDoc = () => doc(db, 'sat_settings', 'app');
 const bankDoc = () => doc(db, 'sat_content', 'math_bank');
 const enBankDoc = () => doc(db, 'sat_content', 'english_bank');
+const bankItems = d => { try { return d.json ? JSON.parse(d.json) : d.items || []; } catch (e) { console.error(e); return []; } };
 let saveTimer = null;
 // Every change stamps updatedAt right away; the write follows shortly, or immediately on finish / when the app is hidden.
 function save(now = false) { S.updatedAt = Date.now(); clearTimeout(saveTimer); if (now) return flush(); saveTimer = setTimeout(flush, 500); }
@@ -61,8 +62,8 @@ onAuthStateChanged(auth, u => {
   if (role === 'other') return show(h('section', { class: 'card' }, h('h2', { text: 'This account isn\'t set up for SAT Practice.' }), h('p', { class: 'small muted', text: `v${APP_VERSION} · signed in as …${u.uid.slice(0, 4)}` }), h('button', { class: 'ghost', onclick: () => signOut(auth) }, 'Sign out')));
   unsubs.push(onSnapshot(settingsDoc(), snap => { settings = snap.exists() ? snap.data() : {}; if (loadedOnce && !run) route(); }, e => console.error(e)));
   // Licensed question bank (uploaded by the parent; lives behind the login, not in the public code).
-  unsubs.push(onSnapshot(enBankDoc(), snap => { setEnBank(snap.exists() ? snap.data().items : []); enBankInfo = snap.exists() ? snap.data() : null; if (loadedOnce && !run) route(); }, e => { console.warn('en bank', e.code); }));
-  unsubs.push(onSnapshot(bankDoc(), snap => { setBank(snap.exists() ? snap.data().items : []); bankInfo = snap.exists() ? snap.data() : null; if (loadedOnce && !run) route(); }, e => { console.warn('bank', e.code); }));
+  unsubs.push(onSnapshot(enBankDoc(), snap => { setEnBank(snap.exists() ? bankItems(snap.data()) : []); enBankInfo = snap.exists() ? snap.data() : null; if (loadedOnce && !run) route(); }, e => { console.warn('en bank', e.code); }));
+  unsubs.push(onSnapshot(bankDoc(), snap => { setBank(snap.exists() ? bankItems(snap.data()) : []); bankInfo = snap.exists() ? snap.data() : null; if (loadedOnce && !run) route(); }, e => { console.warn('bank', e.code); }));
   unsubs.push(onSnapshot(studentDoc(), snap => {
     if (run) return; // don't disturb a question in progress
     const incoming = snap.exists() ? snap.data() : null;
@@ -430,7 +431,8 @@ function importCard() {
       const english = list.length && list[0].o && list[0].p != null;
       const v = english ? validateEnBank(data) : validateBank(data);
       if (!v.ok) { msg.replaceChildren(h('p', { class: 'err', text: `Not saved. ${v.problems.length} problem(s):` }), h('ul', {}, v.problems.slice(0, 12).map(p => h('li', { text: p })))); return; }
-      await setDoc(english ? enBankDoc() : bankDoc(), { items: v.items, name: data.name || (english ? 'English question bank' : 'Math question bank'), at: Date.now(), n: v.items.length });
+      // Firestore can't store arrays inside arrays (table rows), so the questions are saved as one JSON string.
+      await setDoc(english ? enBankDoc() : bankDoc(), { json: JSON.stringify(v.items), name: data.name || (english ? 'English question bank' : 'Math question bank'), at: Date.now(), n: v.items.length });
       msg.replaceChildren(h('p', { text: `Saved ${v.items.length} ${english ? 'English' : 'math'} questions. They're in his next session.` }));
     } catch (e) { msg.replaceChildren(h('p', { class: 'err', text: e.code === 'permission-denied' ? 'The database rules are blocking this. Add the sat_content rule in Firebase, then try again.' : 'Couldn\'t read that file: ' + (e.message || e) })); }
   };
