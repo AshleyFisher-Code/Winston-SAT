@@ -14,13 +14,13 @@ SV.forEach(v => { EN_ITEMS[v.id] = { ...v, kind: 'sv', skill: 'sv-' + v.t }; });
 [...RW_CRAFT, ...RW_INFO, ...RW_EXPR].forEach(x => { EN_ITEMS[x.id] = { ...x, kind: 'rw', skill: 'rw-' + x.t }; });
 export const itemsFor = skill => Object.values(EN_ITEMS).filter(x => x.skill === skill);
 // Uploaded English bank (licensed book questions; lives behind the login, not in this repo).
-export const EN_BANK_SKILLS = ['gr-bound', 'gr-nonessential', 'gr-sv', 'gr-pron', 'gr-verb', 'gr-poss', 'gr-mod', 'gr-comp', 'rw-trans', 'rw-synth'];
+export const EN_BANK_SKILLS = ['gr-bound', 'gr-nonessential', 'gr-sv', 'gr-pron', 'gr-verb', 'gr-poss', 'gr-mod', 'gr-comp', 'rw-trans', 'rw-synth', 'rw-wic', 'rw-purpose', 'rw-cross', 'rw-main', 'rw-evid', 'rw-quant', 'rw-infer'];
 export function setEnBank(items) {
   for (const [k, v] of Object.entries(EN_ITEMS)) if (v.bank) delete EN_ITEMS[k];
   (items || []).forEach(x => { if (enUsable(x)) EN_ITEMS[x.id] = { ...x, kind: 'rw', skill: x.sk, bank: true, e: x.e }; });
 }
 export const enBankSize = () => Object.values(EN_ITEMS).filter(x => x.bank).length;
-const enUsable = x => x && EN_BANK_SKILLS.includes(x.sk) && x.conf !== 'low' && x.ok !== false && Array.isArray(x.o) && x.o.length === 4 && x.a >= 0 && x.a < 4 && x.d && Array.isArray(x.d.o);
+const enUsable = x => x && EN_BANK_SKILLS.includes(x.sk) && x.conf !== 'low' && x.ok !== false && Array.isArray(x.o) && x.o.length === 4 && x.a >= 0 && x.a < 4 && (x.d == null || Array.isArray(x.d.o));
 export function validateEnBank(data) {
   const items = Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : null;
   if (!items) return { ok: false, items: [], problems: ['The file is not a question list.'] };
@@ -31,7 +31,7 @@ export function validateEnBank(data) {
     if (!EN_BANK_SKILLS.includes(x.sk)) problems.push(`${w}: unknown skill "${x.sk}"`);
     if (!Array.isArray(x.o) || x.o.length !== 4 || new Set(x.o).size !== 4) problems.push(`${w}: needs 4 different choices`);
     if (!(x.a >= 0 && x.a < 4)) problems.push(`${w}: answer index`);
-    if (!x.d || !Array.isArray(x.d.o) || x.d.o.length < 3 || !(x.d.a >= 0 && x.d.a < x.d.o.length)) problems.push(`${w}: first-move step malformed`);
+    if (x.d != null && (!Array.isArray(x.d.o) || x.d.o.length < 3 || !(x.d.a >= 0 && x.d.a < x.d.o.length))) problems.push(`${w}: first-move step malformed`);
     if (typeof x.p !== 'string' || typeof x.q !== 'string') problems.push(`${w}: passage or question missing`);
   });
   return { ok: problems.length === 0, items, problems };
@@ -178,8 +178,8 @@ function readingCard(sp, it, sk, card, seed) {
     return card;
   }
   const d = it.d;
-  card.steps.push({ tag: 'read', title: 'First move', instr: d.q, fields: [{ label: 'First move', choices: d.o, answer: d.o[d.a], long: true }], why: () => d.why });
-  if (sp.m === 'decode') { card.chip = 'Decode'; card.summary = `Decode: ${sk.name} (${it.id})`; return card; }
+  if (d) card.steps.push({ tag: 'read', title: 'First move', instr: d.q, fields: [{ label: 'First move', choices: d.o, answer: d.o[d.a], long: true }], why: () => d.why });
+  if (sp.m === 'decode' && d) { card.chip = 'Decode'; card.summary = `Decode: ${sk.name} (${it.id})`; return card; }
   card.steps.push({ tag: 'answer', title: 'Now answer', instr: null,
     fields: [{ label: 'Answer', choices: it.o, answer: it.o[it.a], long: true }],
     why: () => ex(it.a),
