@@ -1,6 +1,6 @@
 // Licensed question banks (e.g. Marks Education math). These are NOT in the public code: the
 // parent uploads them once and they live in Firestore (sat_content), readable only by the two accounts.
-import { fmt } from './util.js';
+import { fmt, rng, shuffleR, hash } from './util.js';
 import { parseNum } from './math.js';
 
 export const BANK_SKILLS = [
@@ -63,6 +63,8 @@ export function gridCheck(it, v) {
   return it.ans.some(a => { const m = parseNum(a); return m != null && Math.abs(m - n) < 1e-4; });
 }
 
+// Step options are shuffled per showing (the source files often list the right one first).
+const mix = (o, key, seed) => shuffleR(rng(hash(key) ^ (seed || 1)), o);
 // Card for a bank item. Modes: rule = Ask first only; decode = Ask + Desmos; full = steps then the answer.
 export function bankCard(sp) {
   const it = BANK[sp.id];
@@ -70,9 +72,9 @@ export function bankCard(sp) {
   const sk = BANK_SKILLS.find(s => s.id === it.sk);
   const card = { spec: sp, subject: 'math', skill: it.sk, mode: sp.m, itemId: it.id, steps: [], stem: { kind: 'math', text: it.stem, fig: it.fig || null }, desmos: sp.m !== 'rule', src: it.src };
   card.steps.push({ tag: 'ask', title: 'Ask first', instr: 'Write the ask on your paper (1–2 words). Then tap it.',
-    fields: [{ label: 'The question asks for', choices: it.ask.o, answer: it.ask.o[it.ask.a], long: true }], why: () => `The question asks for ${it.ask.o[it.ask.a]}.` });
+    fields: [{ label: 'The question asks for', choices: mix(it.ask.o, it.id + 'ask', sp.seed), answer: it.ask.o[it.ask.a], long: true }], why: () => `The question asks for ${it.ask.o[it.ask.a]}.` });
   if (sp.m !== 'rule' && it.eq) card.steps.push({ tag: 'desmos', title: 'Then Desmos', instr: 'Type it into Desmos now, even if it looks easy. Then tap what you typed.',
-    fields: [{ label: 'Type into Desmos', choices: it.eq.o, answer: it.eq.o[it.eq.a], long: true, mono: true }], why: () => it.why || '' });
+    fields: [{ label: 'Type into Desmos', choices: mix(it.eq.o, it.id + 'eq', sp.seed), answer: it.eq.o[it.eq.a], long: true, mono: true }], why: () => it.why || '' });
   if (sp.m === 'full') {
     const L = 'ABCD';
     const f = it.choices
